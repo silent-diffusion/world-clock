@@ -29,9 +29,10 @@ After installing, World Clock runs in the background with an icon in the system 
   time in a compact `11:24 A` / `5:24 P` style.
 - **Daylight-saving aware**: times come from the IANA time zone database, so DST
   changes are handled automatically.
-- **Part of the desktop**: the widget sits on the desktop layer behind your windows, stays
-  visible on "Show desktop" (Win+D), and never shows in the taskbar or Alt+Tab. Choose
-  Small, Medium or Large in Settings; drag it to move it and it remembers where you put it.
+- **Sits on your desktop**: a borderless widget that always stays behind your other
+  windows and never shows in the taskbar. Choose Small, Medium or Large in Settings;
+  drag it to move it and it remembers where you put it. "Show desktop" (Win+D) hides it
+  like any other window; click the tray icon to bring it back.
 - **Always running**: lives in the system tray and starts when you sign in to Windows
   (you can turn that off in Settings).
 - **Edit your cities**: search about 7,000 cities, add or remove them, sort the list by
@@ -101,7 +102,6 @@ Project layout:
 | `src/settings-page.ts` | The Settings window (`settings.html`) |
 | `src/updates.ts` | Checks GitHub for a newer release |
 | `src-tauri/src/update.rs` | Downloads, verifies and runs the update installer |
-| `src-tauri/src/desktop.rs` | Pins the widget to the desktop layer |
 | `src-tauri/` | The Rust/Tauri desktop shell and window settings |
 
 ## Releasing (maintainers)

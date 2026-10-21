@@ -5,7 +5,6 @@ use tauri::{
 };
 use tauri_plugin_window_state::StateFlags;
 
-mod desktop;
 mod update;
 
 /// Opens the settings window, or brings it to the front if it is already open.
@@ -30,7 +29,7 @@ fn open_settings_window(app: AppHandle) {
     open_settings(&app);
 }
 
-/// Shows the widget if it was hidden. It stays on the desktop layer, so it isn't focused or raised.
+/// Shows the widget if it was hidden (e.g. after "Show desktop"). It stays behind other windows.
 fn show_widget(app: &AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
         let _ = window.unminimize();
@@ -60,9 +59,6 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![open_settings_window, update::install_update])
         .setup(|app| {
             update::clean_up(app.handle());
-            if let Some(widget) = app.get_webview_window("main") {
-                desktop::pin_to_desktop(&widget);
-            }
 
             let settings = MenuItem::with_id(app, "settings", "Settings…", true, None::<&str>)?;
             let updates = MenuItem::with_id(app, "updates", "Check for updates", true, None::<&str>)?;
