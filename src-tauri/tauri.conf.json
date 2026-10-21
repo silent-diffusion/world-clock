@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "World Clock",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "identifier": "io.github.silent-diffusion.world-clock",
   "build": {
     "beforeDevCommand": "npm run dev",
@@ -14,15 +14,17 @@
       {
         "label": "main",
         "title": "World Clock",
-        "width": 1000,
-        "height": 405,
-        "minWidth": 400,
-        "minHeight": 162,
+        "width": 720,
+        "height": 292,
         "decorations": false,
         "transparent": true,
         "shadow": false,
-        "resizable": true,
-        "skipTaskbar": true
+        "resizable": false,
+        "skipTaskbar": true,
+        "maximizable": false,
+        "minimizable": false,
+        "alwaysOnBottom": true,
+        "focus": false
       }
     ],
     "security": {

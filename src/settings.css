@@ -129,7 +129,8 @@ h2 {
   white-space: nowrap;
 }
 
-.city select {
+.city select,
+.row select {
   height: 36px;
 }
 

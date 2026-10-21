@@ -29,14 +29,17 @@ After installing, World Clock runs in the background with an icon in the system 
   time in a compact `11:24 A` / `5:24 P` style.
 - **Daylight-saving aware**: times come from the IANA time zone database, so DST
   changes are handled automatically.
+- **Part of the desktop**: the widget sits on the desktop layer behind your windows, stays
+  visible on "Show desktop" (Win+D), and never shows in the taskbar or Alt+Tab. Choose
+  Small, Medium or Large in Settings; drag it to move it and it remembers where you put it.
 - **Always running**: lives in the system tray and starts when you sign in to Windows
-  (you can turn that off in Settings). The widget remembers where you put it and its size.
+  (you can turn that off in Settings).
 - **Edit your cities**: search about 7,000 cities, add or remove them, change the short
   label and which side of the pin it sits on.
 - **Light and dark looks** that follow the system theme.
 - **Updates from GitHub**: the app checks this repository's GitHub Releases for a
-  newer version and offers to download the new installer. Automatic checks can be
-  turned off in Settings, and you can always check by hand.
+  newer version and installs it with one click. Automatic checks can be turned off in
+  Settings, and you can always check by hand.
 
 ### Ideas for later
 
@@ -50,9 +53,11 @@ After installing, World Clock runs in the background with an icon in the system 
 
 Shortly after it starts, and then once a day, the app asks the GitHub API for this
 repository's latest release. If that release is newer than the installed version, it
-shows "Update available" with a **Download** button that opens the newest installer
-in your browser. Run it and it updates the app in place. Nothing is downloaded or
-installed without you clicking.
+shows "Update available" with an **Install and restart** button. One click downloads
+the new installer into the app's data folder, checks it against the SHA-256 checksum
+GitHub publishes for it, installs it in place and restarts World Clock. Nothing is
+downloaded or installed without you clicking. If the automatic install fails, the app
+offers to open the installer download in your browser instead.
 
 ## Tech stack
 
@@ -94,6 +99,8 @@ Project layout:
 | `src/settings.ts` | Saved settings shared by both windows |
 | `src/settings-page.ts` | The Settings window (`settings.html`) |
 | `src/updates.ts` | Checks GitHub for a newer release |
+| `src-tauri/src/update.rs` | Downloads, verifies and runs the update installer |
+| `src-tauri/src/desktop.rs` | Pins the widget to the desktop layer |
 | `src-tauri/` | The Rust/Tauri desktop shell and window settings |
 
 ## Releasing (maintainers)
