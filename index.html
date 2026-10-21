@@ -4,10 +4,74 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>World Clock</title>
+    <link rel="stylesheet" href="/src/settings.css" />
     <link rel="stylesheet" href="/src/styles.css" />
     <script type="module" src="/src/main.ts"></script>
   </head>
   <body>
-    <svg id="widget" viewBox="0 0 1000 405" preserveAspectRatio="xMidYMid meet" role="img" aria-label="World clock" data-tauri-drag-region></svg>
+    <header class="app-bar">
+      <div class="tabs" role="tablist" aria-label="World Clock">
+        <button type="button" role="tab" data-view="clock" aria-selected="true" aria-controls="clock-view">Clock</button>
+        <button type="button" role="tab" data-view="settings" aria-selected="false" aria-controls="settings-view">Settings</button>
+      </div>
+    </header>
+
+    <section id="clock-view" class="clock-view" role="tabpanel" aria-label="Clock">
+      <svg id="map" viewBox="0 0 1000 405" preserveAspectRatio="xMidYMid meet" role="img" aria-label="World clock"></svg>
+    </section>
+
+    <main id="settings-view" role="tabpanel" aria-label="Settings" hidden>
+      <section aria-labelledby="cities-heading">
+        <div class="section-head">
+          <h2 id="cities-heading">Cities</h2>
+          <label class="sort">
+            <span>Sort by</span>
+            <select id="city-sort">
+              <option value="added">Date added</option>
+              <option value="name">Name (A–Z)</option>
+              <option value="timezone">Time zone (west to east)</option>
+            </select>
+          </label>
+        </div>
+        <p class="hint">Shown on the map. Change the short label or where it sits next to the pin.</p>
+        <ul id="city-list" class="card"></ul>
+
+        <div class="search">
+          <label for="city-search">Add a city</label>
+          <input id="city-search" type="search" placeholder="Search for a city…" autocomplete="off" />
+          <ul id="search-results" class="card results" hidden></ul>
+        </div>
+      </section>
+
+      <section aria-labelledby="general-heading">
+        <h2 id="general-heading">General</h2>
+        <div class="card rows">
+          <label class="row">
+            <span>Start World Clock when I sign in</span>
+            <input id="autostart" type="checkbox" />
+          </label>
+        </div>
+      </section>
+
+      <section aria-labelledby="updates-heading">
+        <h2 id="updates-heading">Updates</h2>
+        <div class="card rows">
+          <label class="row">
+            <span>Check for updates automatically</span>
+            <input id="auto-updates" type="checkbox" />
+          </label>
+          <div class="row">
+            <div class="stack">
+              <span id="version">Version …</span>
+              <span id="update-status" class="hint" role="status"></span>
+            </div>
+            <div class="buttons">
+              <button id="install" type="button" class="primary" hidden>Install update</button>
+              <button id="check-now" type="button">Check now</button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
   </body>
 </html>

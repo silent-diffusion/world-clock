@@ -1,6 +1,6 @@
 # World Clock
 
-A free, open-source desktop world clock widget. It shows a world map with a live
+A free, open-source world clock app for Windows. It shows a world map with a live
 day/night shading line and the local time in the cities you care about, at a glance.
 
 ## Download
@@ -14,30 +14,23 @@ Run the installer; no administrator rights are needed. Every release is listed o
 > **Windows SmartScreen:** the installer is not code-signed with a paid certificate yet,
 > so Windows may show "Windows protected your PC". Click **More info → Run anyway**.
 
-After installing, World Clock runs in the background with an icon in the system tray
-(the area by the clock on the taskbar):
-
-- **Left-click** the tray icon to bring the widget to the front.
-- **Right-click** the tray icon for **Settings…**, **Check for updates** and **Quit**.
-- **Right-click the widget** to open Settings. Drag the widget to move it.
+World Clock is a normal app window with two tabs: **Clock** shows the map, and
+**Settings** is where you manage cities, start-at-sign-in and updates.
 
 ## Features
 
-- **World map widget** with a live day/night terminator (the curved shadow that
+- **World map** with a live day/night terminator (the curved shadow that
   shows where the sun is up), updated every minute.
 - **City pins** with a short label (for example `NYC`, `BRN`, `DXB`) and the local
   time in a compact `11:24 A` / `5:24 P` style.
 - **Daylight-saving aware**: times come from the IANA time zone database, so DST
   changes are handled automatically.
-- **Sits on your desktop**: a borderless widget that always stays behind your other
-  windows and never shows in the taskbar. Choose Small, Medium or Large in Settings;
-  drag it to move it and it remembers where you put it. "Show desktop" (Win+D) hides it
-  like any other window; click the tray icon to bring it back.
-- **Always running**: lives in the system tray and starts when you sign in to Windows
-  (you can turn that off in Settings).
+- **One app, one window**: resize it however you like; it remembers its size and
+  position. Opening World Clock again brings the existing window to the front.
+- **Starts when you sign in** to Windows (you can turn that off in Settings).
 - **Edit your cities**: search about 7,000 cities, add or remove them, sort the list by
-  date added, name or time zone, change the short
-  label and which side of the pin it sits on.
+  date added, name or time zone, change the short label and which side of the pin it
+  sits on.
 - **Light and dark looks** that follow the system theme.
 - **Updates from GitHub**: the app checks this repository's GitHub Releases for a
   newer version and installs it with one click. Automatic checks can be turned off in
@@ -48,7 +41,7 @@ After installing, World Clock runs in the background with an icon in the system 
 - 12-hour / 24-hour toggle and seconds display
 - Meeting planner: line up working hours across the cities you track
 - Sunrise and sunset times per city
-- Alternative map styles and widget sizes
+- Alternative map styles
 - macOS and Linux builds
 
 ## How updates work
@@ -66,7 +59,7 @@ offers to open the installer download in your browser instead.
 | Part | Choice | Why |
 | --- | --- | --- |
 | App shell | [Tauri 2](https://tauri.app) | Small installer, low memory use, native transparent/frameless windows |
-| UI | TypeScript + HTML/CSS (SVG map) | Easy to style the widget and draw the day/night curve |
+| UI | TypeScript + HTML/CSS (SVG map) | Easy to style the app and draw the day/night curve |
 | Time zones | `Intl` / IANA tz data | Accurate DST handling without a server |
 | Updates | GitHub Releases API | Finds new versions with no keys or extra servers |
 | Builds | GitHub Actions | Builds and publishes a release when a version tag is pushed |
@@ -86,7 +79,7 @@ You will need:
 ```bash
 npm install
 npm run tauri dev     # run the desktop app with hot reload
-npm run dev           # or preview just the widget in a browser at http://localhost:1420
+npm run dev           # or preview the app in a browser at http://localhost:1420
 npm run tauri build   # build the Windows installer
 ```
 
@@ -94,12 +87,13 @@ Project layout:
 
 | Path | What it is |
 | --- | --- |
-| `src/main.ts` | Draws the widget and redraws it every minute |
+| `index.html` | The app window: Clock and Settings tabs |
+| `src/main.ts` | Draws the map and redraws it every minute; switches tabs |
 | `src/sun.ts` | Sun position and the day/night line |
 | `src/map.ts` | Coastlines from Natural Earth |
 | `src/cities.ts` | The default list of cities |
-| `src/settings.ts` | Saved settings shared by both windows |
-| `src/settings-page.ts` | The Settings window (`settings.html`) |
+| `src/settings.ts` | Saved settings |
+| `src/settings-page.ts` | The Settings tab |
 | `src/updates.ts` | Checks GitHub for a newer release |
 | `src-tauri/src/update.rs` | Downloads, verifies and runs the update installer |
 | `src-tauri/` | The Rust/Tauri desktop shell and window settings |

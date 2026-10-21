@@ -1,9 +1,10 @@
 import type { City } from "./cities";
 import { landPath } from "./map";
-import { inTauri, loadSettings, onSettingsChanged, WIDGET_WIDTHS } from "./settings";
+import { inTauri, loadSettings, onSettingsChanged } from "./settings";
+import "./settings-page";
 import { isDaylight, nightPath, sunPosition, type SunPosition } from "./sun";
 
-// The widget is drawn in a fixed 1000×405 coordinate space and scaled to the window by the SVG viewBox.
+// The map is drawn in a fixed 1000×405 coordinate space and scaled to the window by the SVG viewBox.
 const WIDTH = 1000;
 const HEIGHT = 405;
 const RADIUS = 36;
@@ -13,51 +14,39 @@ const LAT_SPAN = 146;
 
 const scaleX = WIDTH / 360;
 const scaleY = HEIGHT / LAT_SPAN;
-// Maps (longitude, -latitude) onto widget pixels.
+// Maps (longitude, -latitude) onto map pixels.
 const MAP_TRANSFORM = `matrix(${scaleX},0,0,${scaleY},${WIDTH / 2},${LAT_TOP * scaleY})`;
 
-// Display options that aren't in the settings window yet.
+// Display options that aren't in Settings yet.
 const display = { look: "auto", hour24: false };
 
 let settings = loadSettings();
 onSettingsChanged(() => {
   settings = loadSettings();
   render();
-  if (inTauri) applyWidgetSize();
 });
 
-// The widget isn't resizable by dragging; its size is chosen in Settings.
-async function applyWidgetSize(): Promise<void> {
-  const { getCurrentWindow, LogicalSize } = await import("@tauri-apps/api/window");
-  const width = WIDGET_WIDTHS[settings.widgetSize];
-  await getCurrentWindow().setSize(new LogicalSize(width, Math.round((width * HEIGHT) / WIDTH)));
-}
-
-const svg = document.getElementById("widget") as unknown as SVGSVGElement;
+const svg = document.getElementById("map") as unknown as SVGSVGElement;
 const land = landPath();
 
-if (inTauri) {
-  setUpDesktop();
-} else {
-  document.documentElement.classList.add("browser");
-}
+if (inTauri) setUpDesktop();
 document.documentElement.dataset.look = display.look;
+
+// ---- Clock / Settings views ----
+
+const tabs = document.querySelectorAll<HTMLButtonElement>("[data-view]");
+function showView(view: string): void {
+  for (const tab of tabs) {
+    const active = tab.dataset.view === view;
+    tab.setAttribute("aria-selected", String(active));
+    document.getElementById(`${tab.dataset.view}-view`)!.hidden = !active;
+  }
+}
+tabs.forEach((tab) => tab.addEventListener("click", () => showView(tab.dataset.view!)));
 
 // Loaded lazily so the browser preview (npm run dev) doesn't touch the Tauri plugins.
 async function setUpDesktop(): Promise<void> {
-  const { invoke } = await import("@tauri-apps/api/core");
-  const { listen } = await import("@tauri-apps/api/event");
-  const { promptForUpdate, scheduleUpdateChecks } = await import("./updates");
-
-  applyWidgetSize();
-
-  // Right-click the widget to open settings.
-  svg.addEventListener("contextmenu", (event) => {
-    event.preventDefault();
-    invoke("open_settings_window");
-  });
-
-  listen("check-for-updates", () => promptForUpdate(true));
+  const { scheduleUpdateChecks } = await import("./updates");
   scheduleUpdateChecks(() => settings.autoCheckUpdates);
 
   // Start at sign-in by default; after the first run, the setting is whatever the user chose.

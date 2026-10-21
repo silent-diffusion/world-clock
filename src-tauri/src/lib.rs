@@ -1,95 +1,30 @@
-use tauri::{
-    menu::{Menu, MenuItem, PredefinedMenuItem},
-    tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
-    AppHandle, Emitter, Manager, WebviewUrl, WebviewWindowBuilder,
-};
-use tauri_plugin_window_state::StateFlags;
+use tauri::Manager;
 
 mod update;
-
-/// Opens the settings window, or brings it to the front if it is already open.
-fn open_settings(app: &AppHandle) {
-    if let Some(window) = app.get_webview_window("settings") {
-        let _ = window.unminimize();
-        let _ = window.show();
-        let _ = window.set_focus();
-        return;
-    }
-    let _ = WebviewWindowBuilder::new(app, "settings", WebviewUrl::App("settings.html".into()))
-        .title("World Clock Settings")
-        .inner_size(560.0, 760.0)
-        .min_inner_size(440.0, 480.0)
-        .center()
-        .build();
-}
-
-/// Lets the widget open settings (it does so on right-click).
-#[tauri::command]
-fn open_settings_window(app: AppHandle) {
-    open_settings(&app);
-}
-
-/// Shows the widget if it was hidden (e.g. after "Show desktop"). It stays behind other windows.
-fn show_widget(app: &AppHandle) {
-    if let Some(window) = app.get_webview_window("main") {
-        let _ = window.unminimize();
-        let _ = window.show();
-    }
-}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        // Must be registered first: launching the app again (e.g. from the Start menu) opens settings
-        // in the copy that is already running instead of starting a second widget.
-        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| open_settings(app)))
+        // Must be registered first: opening World Clock again (e.g. from the Start menu) brings the
+        // running window to the front instead of starting a second copy.
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.unminimize();
+                let _ = window.show();
+                let _ = window.set_focus();
+            }
+        }))
         .plugin(tauri_plugin_autostart::init(
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,
             Some(vec!["--autostart"]),
         ))
-        // Remembers where the widget sits (its size comes from Settings); the settings window always opens centred.
-        .plugin(
-            tauri_plugin_window_state::Builder::new()
-                .with_denylist(&["settings"])
-                .with_state_flags(StateFlags::POSITION)
-                .build(),
-        )
+        // Remembers the window's size, position and maximized state between launches.
+        .plugin(tauri_plugin_window_state::Builder::new().build())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![open_settings_window, update::install_update])
+        .invoke_handler(tauri::generate_handler![update::install_update])
         .setup(|app| {
             update::clean_up(app.handle());
-
-            let settings = MenuItem::with_id(app, "settings", "Settings…", true, None::<&str>)?;
-            let updates = MenuItem::with_id(app, "updates", "Check for updates", true, None::<&str>)?;
-            let separator = PredefinedMenuItem::separator(app)?;
-            let quit = MenuItem::with_id(app, "quit", "Quit World Clock", true, None::<&str>)?;
-            let menu = Menu::with_items(app, &[&settings, &updates, &separator, &quit])?;
-
-            TrayIconBuilder::with_id("tray")
-                .icon(app.default_window_icon().unwrap().clone())
-                .tooltip("World Clock")
-                .menu(&menu)
-                .show_menu_on_left_click(false)
-                .on_menu_event(|app, event| match event.id().as_ref() {
-                    "settings" => open_settings(app),
-                    "updates" => {
-                        let _ = app.emit_to("main", "check-for-updates", ());
-                    }
-                    "quit" => app.exit(0),
-                    _ => {}
-                })
-                .on_tray_icon_event(|tray, event| {
-                    if let TrayIconEvent::Click {
-                        button: MouseButton::Left,
-                        button_state: MouseButtonState::Up,
-                        ..
-                    } = event
-                    {
-                        show_widget(tray.app_handle());
-                    }
-                })
-                .build(app)?;
             Ok(())
         })
         .run(tauri::generate_context!())
