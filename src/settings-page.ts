@@ -1,5 +1,5 @@
 import { defaultLabelSide, makeCode, type City, type LabelSide } from "./cities";
-import { inTauri, loadSettings, onSettingsChanged, saveSettings, type Settings, type WidgetSize } from "./settings";
+import { inTauri, loadSettings, onSettingsChanged, saveSettings, type CitySort, type Settings, type WidgetSize } from "./settings";
 
 interface CityRecord {
   city: string;
@@ -29,6 +29,7 @@ const updateStatus = document.getElementById("update-status") as HTMLSpanElement
 const checkNow = document.getElementById("check-now") as HTMLButtonElement;
 const install = document.getElementById("install") as HTMLButtonElement;
 const widgetSize = document.getElementById("widget-size") as HTMLSelectElement;
+const citySort = document.getElementById("city-sort") as HTMLSelectElement;
 
 let settings: Settings = loadSettings();
 let matches: CityRecord[] = [];
@@ -49,13 +50,42 @@ async function update(change: (s: Settings) => void, rerender = true): Promise<v
 
 // ---- Cities ----
 
+/** Current offset from UTC in minutes, e.g. -360 for UTC−6 (follows daylight saving). */
+function utcOffsetMinutes(timeZone: string): number {
+  const name = new Intl.DateTimeFormat("en-US", { timeZone, timeZoneName: "longOffset" })
+    .formatToParts(new Date())
+    .find((p) => p.type === "timeZoneName")?.value;
+  const match = name?.match(/GMT([+-])(\d{2}):(\d{2})/);
+  if (!match) return 0; // "GMT" alone means UTC+0
+  const minutes = Number(match[2]) * 60 + Number(match[3]);
+  return match[1] === "-" ? -minutes : minutes;
+}
+
+/**
+ * Indexes into settings.cities in display order. The saved list stays in the order cities were added,
+ * so "Date added" is simply that order and the indexes stay valid for edits and removal.
+ */
+function displayOrder(): number[] {
+  const order = settings.cities.map((_, i) => i);
+  const cities = settings.cities;
+  if (settings.citySort === "name") {
+    order.sort((a, b) => cities[a].name.localeCompare(cities[b].name));
+  } else if (settings.citySort === "timezone") {
+    // West to east: earliest local time first; cities sharing an offset go by longitude.
+    const offsets = cities.map((c) => utcOffsetMinutes(c.timeZone));
+    order.sort((a, b) => offsets[a] - offsets[b] || cities[a].lon - cities[b].lon);
+  }
+  return order;
+}
+
 function renderCities(): void {
   if (settings.cities.length === 0) {
     cityList.innerHTML = `<li class="empty">No cities yet. Search below to add one.</li>`;
     return;
   }
-  cityList.innerHTML = settings.cities
-    .map((city, i) => {
+  cityList.innerHTML = displayOrder()
+    .map((i) => {
+      const city = settings.cities[i];
       const where = [city.country, city.timeZone.replace(/_/g, " ")].filter(Boolean).join(" · ");
       const options = LABEL_SIDES.map(
         (side) => `<option value="${side.value}"${side.value === city.label ? " selected" : ""}>${side.text}</option>`,
@@ -231,6 +261,10 @@ async function initUpdates(): Promise<void> {
   });
 }
 
+// ---- City order ----
+
+citySort.addEventListener("change", () => update((s) => (s.citySort = citySort.value as CitySort)));
+
 // ---- Widget size ----
 
 widgetSize.addEventListener("change", () => update((s) => (s.widgetSize = widgetSize.value as WidgetSize), false));
@@ -241,6 +275,7 @@ function syncFromSettings(): void {
   settings = loadSettings();
   autoUpdates.checked = settings.autoCheckUpdates;
   widgetSize.value = settings.widgetSize;
+  citySort.value = settings.citySort;
   renderCities();
 }
 
