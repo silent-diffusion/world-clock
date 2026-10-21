@@ -138,7 +138,8 @@ issue first so it can be discussed.
 
 ## License
 
-To be decided before the first release (MIT is the current plan).
+World Clock is free and open source under the [MIT License](LICENSE). You can use, copy,
+change and share it, including in other projects, as long as the license notice stays with it.
 
 ## Credits
 
