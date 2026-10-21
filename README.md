@@ -14,12 +14,14 @@ Run the installer; no administrator rights are needed. Every release is listed o
 > **Windows SmartScreen:** the installer is not code-signed with a paid certificate yet,
 > so Windows may show "Windows protected your PC". Click **More info → Run anyway**.
 
-> **Status:** early. The widget works; settings (editing cities, themes, always on top)
-> are next.
+After installing, World Clock runs in the background with an icon in the system tray
+(the area by the clock on the taskbar):
+
+- **Left-click** the tray icon to bring the widget to the front.
+- **Right-click** the tray icon for **Settings…**, **Check for updates** and **Quit**.
+- **Right-click the widget** to open Settings. Drag the widget to move it.
 
 ## Features
-
-### Planned for the first release
 
 - **World map widget** with a live day/night terminator (the curved shadow that
   shows where the sun is up), updated every minute.
@@ -27,13 +29,14 @@ Run the installer; no administrator rights are needed. Every release is listed o
   time in a compact `11:24 A` / `5:24 P` style.
 - **Daylight-saving aware**: times come from the IANA time zone database, so DST
   changes are handled automatically.
-- **Desktop widget behaviour**: a frameless, rounded window that can sit on the
-  desktop or stay on top, remembers its size and position, and can start with the
-  computer.
-- **Edit your cities**: search for a city, set its short label, reorder or remove it.
+- **Always running**: lives in the system tray and starts when you sign in to Windows
+  (you can turn that off in Settings). The widget remembers where you put it and its size.
+- **Edit your cities**: search about 7,000 cities, add or remove them, change the short
+  label and which side of the pin it sits on.
 - **Light and dark looks** that follow the system theme.
 - **Updates from GitHub**: the app checks this repository's GitHub Releases for a
-  newer version and offers to download the new installer.
+  newer version and offers to download the new installer. Automatic checks can be
+  turned off in Settings, and you can always check by hand.
 
 ### Ideas for later
 
@@ -88,6 +91,9 @@ Project layout:
 | `src/sun.ts` | Sun position and the day/night line |
 | `src/map.ts` | Coastlines from Natural Earth |
 | `src/cities.ts` | The default list of cities |
+| `src/settings.ts` | Saved settings shared by both windows |
+| `src/settings-page.ts` | The Settings window (`settings.html`) |
+| `src/updates.ts` | Checks GitHub for a newer release |
 | `src-tauri/` | The Rust/Tauri desktop shell and window settings |
 
 ## Releasing (maintainers)
@@ -110,5 +116,6 @@ To be decided before the first release (MIT is the current plan).
 
 ## Credits
 
-Map shapes will come from public-domain [Natural Earth](https://www.naturalearthdata.com)
-data.
+Map shapes come from public-domain [Natural Earth](https://www.naturalearthdata.com)
+data. The city search uses the [city-timezones](https://github.com/kevinroberts/city-timezones)
+list (MIT), which is also based on Natural Earth.

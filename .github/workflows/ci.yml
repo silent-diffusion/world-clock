@@ -1,0 +1,32 @@
+# Compiles the app on pull requests so problems show up before anything is merged or released.
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: lts/*
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+
+      - run: npm ci
+
+      # Type-checks and bundles the widget and settings pages into dist/, which the Rust build embeds.
+      - run: npm run build
+
+      - name: Compile the desktop app
+        working-directory: src-tauri
+        run: cargo build
