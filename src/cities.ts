@@ -11,7 +11,14 @@ export interface City {
   lat: number;
   lon: number;
   label: LabelSide;
+  /** Shown in mini mode when "Only pinned cities" is on. */
+  pinned?: boolean;
+  /** The user's own note, shown in the city's details. */
+  note?: string;
 }
+
+/** Identifies a saved city (codes can repeat; name plus position can't). */
+export const cityKey = (city: City): string => `${city.name}|${city.lat}|${city.lon}`;
 
 export const DEFAULT_CITIES: City[] = [
   { code: "SEA", name: "Seattle", country: "United States", timeZone: "America/Los_Angeles", lat: 47.61, lon: -122.33, label: "left" },

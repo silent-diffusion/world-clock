@@ -1,5 +1,6 @@
-import { defaultLabelSide, makeCode, type City, type LabelSide } from "./cities";
-import { inTauri, loadSettings, saveSettings, type CitySort, type Settings } from "./settings";
+import { cityKey, defaultLabelSide, makeCode, type City, type LabelSide } from "./cities";
+import { inTauri, loadSettings, saveSettings, VIEW_INFO, type CitySort, type MapExtras, type Settings, type ViewId } from "./settings";
+import { clockText, utcOffsetMinutes } from "./time";
 
 interface CityRecord {
   city: string;
@@ -19,16 +20,30 @@ const LABEL_SIDES: { value: LabelSide; text: string }[] = [
   { value: "below", text: "Label below" },
 ];
 
-const cityList = document.getElementById("city-list") as HTMLUListElement;
-const search = document.getElementById("city-search") as HTMLInputElement;
-const results = document.getElementById("search-results") as HTMLUListElement;
-const autostart = document.getElementById("autostart") as HTMLInputElement;
-const autoUpdates = document.getElementById("auto-updates") as HTMLInputElement;
-const version = document.getElementById("version") as HTMLSpanElement;
-const updateStatus = document.getElementById("update-status") as HTMLSpanElement;
-const checkNow = document.getElementById("check-now") as HTMLButtonElement;
-const install = document.getElementById("install") as HTMLButtonElement;
-const citySort = document.getElementById("city-sort") as HTMLSelectElement;
+const EXTRAS: { id: keyof MapExtras; name: string; description: string }[] = [
+  { id: "dateBoundary", name: "Show where it's already tomorrow", description: "Shades the part of the world past midnight and names both days" },
+  { id: "dimAsleep", name: "Dim cities where people are asleep", description: "Between 11 PM and 7 AM local time" },
+  { id: "relative", name: "Times relative to the selected city", description: "Labels show “+6h” instead of the clock time" },
+  { id: "details", name: "City details on click", description: "Sunrise, sunset, golden hour, clock changes and your note" },
+  { id: "clockAlerts", name: "Warn before clocks change", description: "A heads-up a week before daylight saving starts or ends" },
+];
+
+const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
+const viewList = $<HTMLUListElement>("view-list");
+const extrasList = $<HTMLDivElement>("extras-list");
+const workStart = $<HTMLSelectElement>("work-start");
+const workEnd = $<HTMLSelectElement>("work-end");
+const miniPinned = $<HTMLInputElement>("mini-pinned");
+const cityList = $<HTMLUListElement>("city-list");
+const search = $<HTMLInputElement>("city-search");
+const results = $<HTMLUListElement>("search-results");
+const autostart = $<HTMLInputElement>("autostart");
+const autoUpdates = $<HTMLInputElement>("auto-updates");
+const version = $<HTMLSpanElement>("version");
+const updateStatus = $<HTMLSpanElement>("update-status");
+const checkNow = $<HTMLButtonElement>("check-now");
+const install = $<HTMLButtonElement>("install");
+const citySort = $<HTMLSelectElement>("city-sort");
 
 let settings: Settings = loadSettings();
 let matches: CityRecord[] = [];
@@ -37,28 +52,130 @@ function escapeHtml(text: string): string {
   return text.replace(/[<>&"']/g, (ch) => `&#${ch.charCodeAt(0)};`);
 }
 
-function localTime(timeZone: string): string {
-  return new Intl.DateTimeFormat("en-US", { timeZone, hour: "numeric", minute: "2-digit" }).format(new Date());
-}
-
-function update(change: (s: Settings) => void, rerender = true): void {
+function update(change: (s: Settings) => void, rerender: () => void = () => {}): void {
   change(settings);
   saveSettings(settings);
-  if (rerender) renderCities();
+  rerender();
 }
+
+function timeOption(minutes: number): string {
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return `${h % 12 || 12}:${String(m).padStart(2, "0")} ${h < 12 ? "AM" : "PM"}`;
+}
+
+// ---- Views: on/off and drag to reorder ----
+
+function renderViews(): void {
+  viewList.innerHTML = settings.views
+    .map(({ id, on }) => {
+      const info = VIEW_INFO[id];
+      const locked = id === "map";
+      return `<li class="row view-row" draggable="true" data-id="${id}">
+        <span class="handle" aria-hidden="true" title="Drag to reorder"></span>
+        <span class="row-text"><span class="row-title">${info.name}</span><span class="row-sub">${info.description}</span></span>
+        <input type="checkbox" role="switch" class="switch" data-view="${id}" aria-label="Show the ${info.name} view (Alt+Up or Alt+Down moves it)"${on ? " checked" : ""}${locked ? " disabled" : ""}/>
+      </li>`;
+    })
+    .join("");
+}
+
+/** Moves a view so it ends up at `toIndex` in the list. */
+function moveView(id: ViewId, toIndex: number): void {
+  update((s) => {
+    const from = s.views.findIndex((v) => v.id === id);
+    const [item] = s.views.splice(from, 1);
+    s.views.splice(Math.max(0, Math.min(s.views.length, toIndex)), 0, item);
+  }, renderViews);
+}
+
+viewList.addEventListener("change", (event) => {
+  const input = event.target as HTMLInputElement;
+  const id = input.dataset.view as ViewId;
+  update((s) => (s.views.find((v) => v.id === id)!.on = input.checked));
+});
+
+// Keyboard reordering: Alt+Up / Alt+Down on a view's switch.
+viewList.addEventListener("keydown", (event) => {
+  const input = event.target as HTMLInputElement;
+  if (!event.altKey || !input.dataset.view || (event.key !== "ArrowUp" && event.key !== "ArrowDown")) return;
+  event.preventDefault();
+  const id = input.dataset.view as ViewId;
+  const index = settings.views.findIndex((v) => v.id === id);
+  moveView(id, index + (event.key === "ArrowUp" ? -1 : 1));
+  viewList.querySelector<HTMLInputElement>(`[data-view="${id}"]`)?.focus();
+});
+
+let draggedView: ViewId | null = null;
+
+/** Where a drop over `row` would land: before it, or after it when over its lower half. */
+function dropPosition(row: HTMLElement, clientY: number): "before" | "after" {
+  const rect = row.getBoundingClientRect();
+  return clientY > rect.top + rect.height / 2 ? "after" : "before";
+}
+
+viewList.addEventListener("dragstart", (event) => {
+  const row = (event.target as Element).closest<HTMLElement>(".view-row");
+  if (!row) return;
+  draggedView = row.dataset.id as ViewId;
+  row.classList.add("dragging");
+  event.dataTransfer?.setData("text/plain", draggedView);
+});
+
+viewList.addEventListener("dragover", (event) => {
+  const row = (event.target as Element).closest<HTMLElement>(".view-row");
+  if (!row || !draggedView) return;
+  event.preventDefault();
+  viewList.querySelectorAll(".drop-before, .drop-after").forEach((el) => el.classList.remove("drop-before", "drop-after"));
+  row.classList.add(`drop-${dropPosition(row, event.clientY)}`);
+});
+
+viewList.addEventListener("drop", (event) => {
+  const row = (event.target as Element).closest<HTMLElement>(".view-row");
+  if (!row || !draggedView) return;
+  event.preventDefault();
+  const from = settings.views.findIndex((v) => v.id === draggedView);
+  let to = settings.views.findIndex((v) => v.id === row.dataset.id) + (dropPosition(row, event.clientY) === "after" ? 1 : 0);
+  if (from < to) to -= 1; // removing the dragged row first shifts the rest up
+  moveView(draggedView, to);
+});
+
+viewList.addEventListener("dragend", () => {
+  draggedView = null;
+  renderViews();
+});
+
+// ---- Map extras ----
+
+function renderExtras(): void {
+  extrasList.innerHTML = EXTRAS.map(
+    (x) => `<label class="row">
+      <span class="row-text"><span class="row-title">${x.name}</span><span class="row-sub">${x.description}</span></span>
+      <input type="checkbox" role="switch" class="switch" data-extra="${x.id}"${settings.extras[x.id] ? " checked" : ""}/>
+    </label>`,
+  ).join("");
+}
+
+extrasList.addEventListener("change", (event) => {
+  const input = event.target as HTMLInputElement;
+  const id = input.dataset.extra as keyof MapExtras;
+  update((s) => (s.extras[id] = input.checked));
+});
+
+// ---- Working hours and mini mode ----
+
+function renderHours(): void {
+  const starts = Array.from({ length: 15 }, (_, i) => 5 * 60 + i * 30); // 5:00 AM to 12:00 PM
+  const ends = Array.from({ length: 23 }, (_, i) => 12 * 60 + i * 30); // 12:00 PM to 11:00 PM
+  workStart.innerHTML = starts.map((m) => `<option value="${m}"${m === settings.workStart ? " selected" : ""}>${timeOption(m)}</option>`).join("");
+  workEnd.innerHTML = ends.map((m) => `<option value="${m}"${m === settings.workEnd ? " selected" : ""}>${timeOption(m)}</option>`).join("");
+}
+
+workStart.addEventListener("change", () => update((s) => (s.workStart = Number(workStart.value))));
+workEnd.addEventListener("change", () => update((s) => (s.workEnd = Number(workEnd.value))));
+miniPinned.addEventListener("change", () => update((s) => (s.miniPinnedOnly = miniPinned.checked)));
 
 // ---- Cities ----
-
-/** Current offset from UTC in minutes, e.g. -360 for UTC−6 (follows daylight saving). */
-function utcOffsetMinutes(timeZone: string): number {
-  const name = new Intl.DateTimeFormat("en-US", { timeZone, timeZoneName: "longOffset" })
-    .formatToParts(new Date())
-    .find((p) => p.type === "timeZoneName")?.value;
-  const match = name?.match(/GMT([+-])(\d{2}):(\d{2})/);
-  if (!match) return 0; // "GMT" alone means UTC+0
-  const minutes = Number(match[2]) * 60 + Number(match[3]);
-  return match[1] === "-" ? -minutes : minutes;
-}
 
 /**
  * Indexes into settings.cities in display order. The saved list stays in the order cities were added,
@@ -82,6 +199,7 @@ function renderCities(): void {
     cityList.innerHTML = `<li class="empty">No cities yet. Search below to add one.</li>`;
     return;
   }
+  const now = new Date();
   cityList.innerHTML = displayOrder()
     .map((i) => {
       const city = settings.cities[i];
@@ -93,12 +211,16 @@ function renderCities(): void {
         <input class="code" type="text" maxlength="4" value="${escapeHtml(city.code)}" aria-label="Map label for ${escapeHtml(city.name)}" />
         <div class="info">
           <span class="name">${escapeHtml(city.name)}</span>
-          <span class="meta"><span class="time">${localTime(city.timeZone)}</span> · ${escapeHtml(where)}</span>
+          <span class="meta">${clockText(now, city.timeZone)} · ${escapeHtml(where)}</span>
         </div>
+        <button class="pin-toggle" type="button" aria-pressed="${Boolean(city.pinned)}" aria-label="Pin ${escapeHtml(city.name)} for mini mode" title="Pin for mini mode">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="${city.pinned ? "currentColor" : "none"}" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M12 2l3 6.5 7 .8-5.2 4.8 1.5 7L12 17.6 5.7 21.1l1.5-7L2 9.3l7-.8z"/></svg>
+        </button>
         <select class="side" aria-label="Label position for ${escapeHtml(city.name)}">${options}</select>
         <button class="remove" type="button" aria-label="Remove ${escapeHtml(city.name)}" title="Remove">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
         </button>
+        <input class="note text-input" type="text" maxlength="80" placeholder="Add a note, like who you know here" value="${escapeHtml(city.note ?? "")}" aria-label="Note for ${escapeHtml(city.name)}" />
       </li>`;
     })
     .join("");
@@ -116,17 +238,30 @@ cityList.addEventListener("change", (event) => {
   if (el.classList.contains("code")) {
     const code = el.value.trim().toUpperCase() || makeCode(settings.cities[i].name);
     el.value = code;
-    update((s) => (s.cities[i].code = code), false);
+    update((s) => (s.cities[i].code = code));
   } else if (el.classList.contains("side")) {
-    update((s) => (s.cities[i].label = el.value as LabelSide), false);
+    update((s) => (s.cities[i].label = el.value as LabelSide));
+  } else if (el.classList.contains("note")) {
+    update((s) => (s.cities[i].note = el.value.trim() || undefined));
   }
 });
 
 cityList.addEventListener("click", (event) => {
-  const button = (event.target as HTMLElement).closest(".remove");
   const i = cityIndex(event.target);
-  if (button && i >= 0) update((s) => s.cities.splice(i, 1));
+  if (i < 0) return;
+  const target = event.target as Element;
+  if (target.closest(".remove")) {
+    const key = cityKey(settings.cities[i]);
+    update((s) => {
+      s.cities.splice(i, 1);
+      s.meetCities = s.meetCities.filter((k) => k !== key);
+    }, renderCities);
+  } else if (target.closest(".pin-toggle")) {
+    update((s) => (s.cities[i].pinned = !s.cities[i].pinned || undefined), renderCities);
+  }
 });
+
+citySort.addEventListener("change", () => update((s) => (s.citySort = citySort.value as CitySort), renderCities));
 
 // ---- Search ----
 
@@ -158,7 +293,7 @@ async function runSearch(): Promise<void> {
     ? matches
         .map((c, i) => {
           const where = [c.province, c.country].filter((p) => p && p !== c.city).join(", ");
-          return `<li><button type="button" data-match="${i}"><span>${escapeHtml(c.city)}</span><span class="where">${escapeHtml(where)}</span></button></li>`;
+          return `<li><button type="button" class="result" data-match="${i}"><span>${escapeHtml(c.city)}</span><span class="where">${escapeHtml(where)}</span></button></li>`;
         })
         .join("")
     : `<li class="empty">No cities found.</li>`;
@@ -193,7 +328,7 @@ function addCity(record: CityRecord): void {
       lon: record.lng,
       label: defaultLabelSide(record.lng),
     };
-    update((s) => s.cities.push(city));
+    update((s) => s.cities.push(city), renderCities);
   }
   search.value = "";
   runSearch();
@@ -221,7 +356,7 @@ async function initAutostart(): Promise<void> {
 
 // ---- Updates ----
 
-autoUpdates.addEventListener("change", () => update((s) => (s.autoCheckUpdates = autoUpdates.checked), false));
+autoUpdates.addEventListener("change", () => update((s) => (s.autoCheckUpdates = autoUpdates.checked)));
 
 async function initUpdates(): Promise<void> {
   if (!inTauri) {
@@ -260,28 +395,19 @@ async function initUpdates(): Promise<void> {
   });
 }
 
-// ---- City order ----
-
-citySort.addEventListener("change", () => update((s) => (s.citySort = citySort.value as CitySort)));
-
 // ---- Start ----
 
-function syncFromSettings(): void {
+/** Re-reads the saved settings and redraws the page; called each time Settings opens. */
+export function refreshSettingsPage(): void {
   settings = loadSettings();
   autoUpdates.checked = settings.autoCheckUpdates;
   citySort.value = settings.citySort;
+  miniPinned.checked = settings.miniPinnedOnly;
+  renderViews();
+  renderExtras();
+  renderHours();
   renderCities();
 }
 
-syncFromSettings();
 initAutostart();
 initUpdates();
-
-// Keep the local times in the list current.
-setInterval(() => {
-  cityList.querySelectorAll<HTMLElement>(".city").forEach((row) => {
-    const city = settings.cities[Number(row.dataset.index)];
-    const time = row.querySelector(".time");
-    if (city && time) time.textContent = localTime(city.timeZone);
-  });
-}, 15000);

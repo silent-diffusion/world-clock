@@ -14,41 +14,55 @@ Run the installer; no administrator rights are needed. Every release is listed o
 > **Windows SmartScreen:** the installer is not code-signed with a paid certificate yet,
 > so Windows may show "Windows protected your PC". Click **More info → Run anyway**.
 
-World Clock opens as a clean window with just the map: no title bar or buttons. Move
-the mouse to the **top edge** of the window to reveal a bar with the **Clock** and
-**Settings** tabs and the minimize, maximize and close buttons. Drag that bar to move
-the window, double-click it to maximize, and drag the window edges to resize.
+World Clock opens as a clean window with no title bar. Move the mouse to the **top
+edge** to reveal a bar with the view tabs, mini mode, Settings and the minimize, maximize
+and close buttons. Drag that bar to move the window and drag the edges to resize.
+
+## Views
+
+Swipe sideways (trackpad, mouse drag or touch), use the tabs, or press **←** / **→** to
+move between views. Choose which views you want, and their order, in Settings.
+
+- **Map**: a dark, dotted world map with a live day/night shadow, a glow where the sun is
+  overhead, and each city's time on a label right beside its pin.
+- **Day**: one row per city with a 24-hour bar of daylight and night, your working hours
+  outlined, and midnights marked with the day name.
+- **Sky**: a card per city, coloured by its real sky right now: morning, afternoon,
+  evening, twilight or night.
+- **Dial**: every city placed around one 24-hour clock face, with your time in the middle.
+- **Meet**: pick the cities in a meeting and see, hour by hour on your own day, when
+  everyone is working. Copy the shared slot's times to paste into an invite.
 
 ## Features
 
-- **World map** with a live day/night terminator (the curved shadow that
-  shows where the sun is up), updated every minute.
-- **City pins** with a short label (for example `NYC`, `BRN`, `DXB`) and the local
-  time in a compact `11:24 A` / `5:24 P` style.
-- **See any moment**: click a city to highlight it, then scroll (or use the arrow keys)
-  to move time forward or back in 15-minute steps. Every city and the day/night shading
-  follow along, the pins turn amber, and a badge shows how far you've moved (for example
-  "+4 hr" or "−2 hr 30 min"). Cities whose date changes show "+1d" or "−1d". Click the
-  city again, click empty map or press Esc to return to now.
-- **Daylight-saving aware**: times come from the IANA time zone database, so DST
-  changes are handled automatically.
-- **One app, one window**: no title bar until you need it; resize it however you like
-  and it remembers its size and position. Opening World Clock again brings the existing window to the front.
-- **Starts when you sign in** to Windows (you can turn that off in Settings).
-- **Edit your cities**: search about 7,000 cities, add or remove them, sort the list by
-  date added, name or time zone, change the short label and which side of the pin it
-  sits on.
-- **Light and dark looks** that follow the system theme.
-- **Updates from GitHub**: the app checks this repository's GitHub Releases for a
-  newer version and installs it with one click. Automatic checks can be turned off in
-  Settings, and you can always check by hand.
+- **See any moment**: click a city (on any view), then scroll or press **↑** / **↓**
+  (**Page Up** / **Page Down** for an hour) to move time in 15-minute steps. Every view
+  follows, times turn amber, a badge shows how far you've moved ("+4 hr", "−2 hr 30 min"),
+  and cities whose date changes show "+1d" or "−1d". Press **Esc**, click the city again or
+  click empty space to return to now.
+- **Map extras**, each a switch in Settings:
+  - **City details**: click a city for sunrise, sunset, golden hour, day length, its next
+    clock change and your own note.
+  - **Clock-change warnings**: a heads-up a week before any of your cities changes its
+    clocks, with the date on that city's label.
+  - **Dim cities where people are asleep** (11 PM to 7 AM local time).
+  - **Times relative to the selected city**: labels show "+6h" instead of the time.
+  - **Where it's already tomorrow**: shades the part of the world past midnight.
+- **Mini mode**: shrink to a slim strip of times that stays on top of other windows,
+  showing every city or only the ones you've pinned.
+- **Daylight-saving aware**: times come from the IANA time zone database, so clock changes
+  are handled automatically.
+- **Edit your cities**: search about 7,000 cities, add or remove them, sort them, change
+  the short label and which side of the pin it sits on, pin them for mini mode, and add a note.
+- **Starts when you sign in** to Windows (you can turn that off in Settings), and opening it
+  again brings the existing window to the front.
+- **Updates from GitHub**: the app checks this repository's releases and installs a newer
+  version with one click.
 
 ### Ideas for later
 
 - 12-hour / 24-hour toggle and seconds display
-- Meeting planner: line up working hours across the cities you track
-- Sunrise and sunset times per city
-- Alternative map styles
+- A light theme
 - macOS and Linux builds
 
 ## How updates work
@@ -94,13 +108,16 @@ Project layout:
 
 | Path | What it is |
 | --- | --- |
-| `index.html` | The app window: Clock and Settings tabs |
-| `src/main.ts` | Draws the map and redraws it every minute; switches tabs |
-| `src/sun.ts` | Sun position and the day/night line |
+| `index.html` | The app window: views, mini strip and Settings |
+| `src/main.ts` | The shell: tabs, swiping, keyboard, scrubbing time, mini mode, the top bar |
+| `src/views/` | One file per view (map, day, sky, dial, meet, mini) plus shared city data |
+| `src/state.ts` | The selected city and time shift, shared by every view |
+| `src/time.ts` | Time-zone helpers, including finding the next clock change |
+| `src/sun.ts` | Sun position, the day/night line, sunrise and sunset |
 | `src/map.ts` | Coastlines from Natural Earth |
 | `src/cities.ts` | The default list of cities |
 | `src/settings.ts` | Saved settings |
-| `src/settings-page.ts` | The Settings tab |
+| `src/settings-page.ts` | The Settings page |
 | `src/updates.ts` | Checks GitHub for a newer release |
 | `src-tauri/src/update.rs` | Downloads, verifies and runs the update installer |
 | `src-tauri/` | The Rust/Tauri desktop shell and window settings |
@@ -108,7 +125,7 @@ Project layout:
 ## Releasing (maintainers)
 
 1. Bump the version in `package.json`, `src-tauri/Cargo.toml` and `src-tauri/tauri.conf.json`.
-2. Commit, then tag and push: `git tag v0.2.0 && git push origin main v0.2.0`.
+2. Commit, then tag and push: `git tag v1.1.0 && git push origin main v1.1.0`.
 3. The [Release workflow](.github/workflows/release.yml) builds the installer on GitHub
    and publishes the release. Installed copies offer it on their next update check.
 

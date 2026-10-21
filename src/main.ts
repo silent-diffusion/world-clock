@@ -1,56 +1,285 @@
-import type { City } from "./cities";
-import { landPath } from "./map";
-import { inTauri, loadSettings, onSettingsChanged } from "./settings";
-import "./settings-page";
-import { isDaylight, nightPath, sunPosition, type SunPosition } from "./sun";
+import { cityKey } from "./cities";
+import { inTauri, loadSettings, onSettingsChanged, VIEW_INFO, type Settings, type ViewId } from "./settings";
+import { refreshSettingsPage } from "./settings-page";
+import { onStateChange, setState, state } from "./state";
+import { clockText, formatShift, longDate, systemTimeZone } from "./time";
+import { snapshot } from "./views/common";
+import { renderDay } from "./views/day-view";
+import { renderDial } from "./views/dial-view";
+import { renderMap } from "./views/map-view";
+import { renderMeet } from "./views/meet-view";
+import { isMini, renderMini, restoreIfTooSmall, setMini } from "./views/mini-view";
+import { renderSky } from "./views/sky-view";
 
-// The map is drawn in a fixed 1000×405 coordinate space and scaled to the window by the SVG viewBox.
-const WIDTH = 1000;
-const HEIGHT = 405;
-const RADIUS = 36;
-// Visible latitudes: the far north and Antarctica are cropped, as in most world clocks.
-const LAT_TOP = 84;
-const LAT_SPAN = 146;
+const $ = (id: string) => document.getElementById(id)!;
+const clock = $("clock");
+const track = $("track");
+const footer = $("footer");
+const badge = $("badge");
+const settingsView = $("settings-view");
 
-const scaleX = WIDTH / 360;
-const scaleY = HEIGHT / LAT_SPAN;
-// Maps (longitude, -latitude) onto map pixels.
-const MAP_TRANSFORM = `matrix(${scaleX},0,0,${scaleY},${WIDTH / 2},${LAT_TOP * scaleY})`;
+let settings: Settings = loadSettings();
+let settingsOpen = false;
 
-// Display options that aren't in Settings yet.
-const display = { look: "auto", hour24: false };
+const STEP_MINUTES = 15; // 15-minute steps also land on half- and quarter-hour time zones
+const MAX_OFFSET_MINUTES = 7 * 24 * 60;
 
-let settings = loadSettings();
-onSettingsChanged(() => {
-  settings = loadSettings();
-  render();
+function enabledViews(): ViewId[] {
+  return settings.views.filter((v) => v.on).map((v) => v.id);
+}
+
+// ---- Drawing ----
+
+function render(): void {
+  const views = enabledViews();
+  if (!views.includes(state.view)) state.view = "map";
+  // Forget the selection if that city was removed in Settings.
+  if (state.selectedKey && !settings.cities.some((c) => cityKey(c) === state.selectedKey)) {
+    Object.assign(state, { selectedKey: null, offsetMinutes: 0, detailsOpen: false });
+  }
+
+  const snap = snapshot(settings);
+  document.body.classList.toggle("shifted", snap.shifted);
+  if (isMini()) {
+    renderMini(snap, settings);
+    return;
+  }
+
+  for (const page of track.querySelectorAll<HTMLElement>(".page")) {
+    const id = page.dataset.view as ViewId;
+    page.hidden = !views.includes(id);
+    page.style.order = String(views.indexOf(id));
+  }
+  if (!track.classList.contains("dragging")) track.style.transform = `translateX(${-views.indexOf(state.view) * 100}%)`;
+
+  if (views.includes("map")) renderMap(snap, settings);
+  if (views.includes("day")) renderDay(snap, settings);
+  if (views.includes("sky")) renderSky(snap);
+  if (views.includes("dial")) renderDial(snap);
+  if (views.includes("meet")) renderMeet(snap, settings);
+
+  // Tabs and page dots.
+  $("view-tabs").innerHTML = views
+    .map((id) => `<button type="button" role="tab" data-go="${id}" aria-selected="${id === state.view}">${VIEW_INFO[id].name}</button>`)
+    .join("");
+  $("dots").innerHTML = views.map((id) => `<span class="${id === state.view ? "active" : ""}"></span>`).join("");
+
+  $("date-line").textContent = `${longDate(snap.shown, systemTimeZone)} · ${clockText(snap.shown, systemTimeZone)}`;
+
+  // Badge: how far time has moved, or which city is selected.
+  const selected = snap.cities.find((c) => c.selected);
+  let main = "";
+  let hint = "";
+  if (snap.shifted) {
+    main = formatShift(state.offsetMinutes);
+    hint = "from now · Esc returns to now";
+  } else if (selected) {
+    main = selected.city.name;
+    hint = settings.extras.relative ? "Gaps are measured from here" : "Scroll to change the time";
+  } else if (settings.extras.relative && state.view === "map") {
+    main = "Relative to your time";
+    hint = "Click a city to compare from there";
+  }
+  badge.hidden = !main || settingsOpen;
+  badge.innerHTML = `<span class="badge-main">${main}</span><span class="badge-hint">${hint}</span>`;
+
+  $("hint").textContent = selected
+    ? "Scroll or ↑ ↓ to move time · ← → for other views"
+    : "Click a city, then scroll to see another time";
+  const asleep = snap.cities.filter((c) => c.asleep).length;
+  const daylight = snap.cities.filter((c) => c.isDay).length;
+  $("summary").textContent = settings.extras.dimAsleep
+    ? `${snap.cities.length - asleep} awake · ${asleep} asleep`
+    : `${daylight} of ${snap.cities.length} cities in daylight`;
+}
+
+// ---- Selecting and scrubbing time ----
+
+function toggleCity(key: string): void {
+  if (state.selectedKey === key) clearSelection();
+  else setState({ selectedKey: key, detailsOpen: false });
+}
+
+function clearSelection(): void {
+  setState({ selectedKey: null, offsetMinutes: 0, detailsOpen: false });
+}
+
+function shiftBy(minutes: number): void {
+  setState({ offsetMinutes: Math.max(-MAX_OFFSET_MINUTES, Math.min(MAX_OFFSET_MINUTES, state.offsetMinutes + minutes)) });
+}
+
+function go(delta: number): void {
+  const views = enabledViews();
+  const index = Math.max(0, Math.min(views.length - 1, views.indexOf(state.view) + delta));
+  setState({ view: views[index] });
+}
+
+// A swipe ends with a click on whatever was under the pointer; swallow it.
+let justDragged = false;
+clock.addEventListener(
+  "click",
+  (event) => {
+    if (!justDragged) return;
+    justDragged = false;
+    event.stopPropagation();
+    event.preventDefault();
+  },
+  true,
+);
+
+clock.addEventListener("click", (event) => {
+  const target = event.target as Element;
+  const item = target.closest<HTMLElement>("[data-key]");
+  if (item && !item.closest(".pins")) {
+    toggleCity(item.dataset.key!);
+    return;
+  }
+  // A click on empty space returns to now.
+  if (!item && !target.closest("button, select, input, label, .details, .alert, .meet-view") && state.selectedKey) clearSelection();
 });
 
-const svg = document.getElementById("map") as unknown as SVGSVGElement;
-const land = landPath();
+let wheelDistance = 0;
+let swipeDistance = 0;
+let lastSwipe = 0;
+clock.addEventListener(
+  "wheel",
+  (event) => {
+    const lines = event.deltaMode === WheelEvent.DOM_DELTA_LINE ? 33 : 1;
+    if (Math.abs(event.deltaX) > Math.abs(event.deltaY)) {
+      // Sideways scrolling (trackpads, tilt wheels) swipes between views.
+      event.preventDefault();
+      swipeDistance += event.deltaX * lines;
+      if (Math.abs(swipeDistance) > 60 && Date.now() - lastSwipe > 450) {
+        go(swipeDistance > 0 ? 1 : -1);
+        lastSwipe = Date.now();
+        swipeDistance = 0;
+      }
+      return;
+    }
+    if (!state.selectedKey) return;
+    event.preventDefault();
+    wheelDistance += event.deltaY * lines;
+    const steps = Math.trunc(wheelDistance / 100); // one mouse-wheel notch; touchpads add up smaller moves
+    if (steps === 0) return;
+    wheelDistance -= steps * 100;
+    shiftBy(-steps * STEP_MINUTES); // scrolling up moves time forward
+  },
+  { passive: false },
+);
 
-if (inTauri) setUpDesktop();
-document.documentElement.dataset.look = display.look;
-
-// ---- Clock / Settings views ----
-
-const tabs = document.querySelectorAll<HTMLButtonElement>("[data-view]");
-function showView(view: string): void {
-  for (const tab of tabs) {
-    const active = tab.dataset.view === view;
-    tab.setAttribute("aria-selected", String(active));
-    document.getElementById(`${tab.dataset.view}-view`)!.hidden = !active;
+// Dragging sideways (mouse, pen or touch) swipes between views.
+let drag: { x: number; y: number; moved: boolean } | null = null;
+clock.addEventListener("pointerdown", (event) => {
+  if (event.pointerType === "mouse" && event.button !== 0) return;
+  if ((event.target as Element).closest("input, select, textarea, .details")) return;
+  drag = { x: event.clientX, y: event.clientY, moved: false };
+});
+clock.addEventListener("pointermove", (event) => {
+  if (!drag) return;
+  const dx = event.clientX - drag.x;
+  const dy = event.clientY - drag.y;
+  if (!drag.moved) {
+    if (Math.abs(dx) < 10 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+    drag.moved = true;
+    track.classList.add("dragging");
+    clock.setPointerCapture(event.pointerId);
   }
-  // The offset badge is sized from its rendered text, which can't be measured while the map is hidden.
-  if (view === "clock") render();
+  const index = enabledViews().indexOf(state.view);
+  track.style.transform = `translateX(calc(${-index * 100}% + ${dx}px))`;
+});
+function endDrag(event: PointerEvent): void {
+  if (!drag) return;
+  const { moved, x } = drag;
+  drag = null;
+  if (!moved) return;
+  justDragged = true;
+  setTimeout(() => (justDragged = false), 0);
+  track.classList.remove("dragging");
+  const dx = event.clientX - x;
+  if (dx < -80) go(1);
+  else if (dx > 80) go(-1);
+  else render();
 }
-tabs.forEach((tab) => tab.addEventListener("click", () => showView(tab.dataset.view!)));
+clock.addEventListener("pointerup", endDrag);
+clock.addEventListener("pointercancel", endDrag);
+
+$("view-tabs").addEventListener("click", (event) => {
+  const tab = (event.target as Element).closest<HTMLElement>("[data-go]");
+  if (tab) setState({ view: tab.dataset.go as ViewId });
+});
+
+document.addEventListener("keydown", (event) => {
+  const target = event.target instanceof Element ? event.target : document.body;
+  const typing = Boolean(target.closest("input, select, textarea"));
+  if (settingsOpen) {
+    if (event.key === "Escape" && !typing) closeSettings();
+    return;
+  }
+  if (isMini()) return;
+  const dialCity = target.closest<HTMLElement>("#dial [data-key]");
+  if (dialCity && (event.key === "Enter" || event.key === " ")) {
+    event.preventDefault();
+    toggleCity(dialCity.dataset.key!);
+    return;
+  }
+  if (typing) return;
+  if (event.key === "Escape") {
+    if (state.detailsOpen) setState({ detailsOpen: false });
+    else if (state.selectedKey) clearSelection();
+    return;
+  }
+  if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+    event.preventDefault();
+    go(event.key === "ArrowRight" ? 1 : -1);
+    return;
+  }
+  if (!state.selectedKey) return;
+  const steps: Record<string, number> = { ArrowUp: 1, ArrowDown: -1, PageUp: 4, PageDown: -4 };
+  if (event.key in steps) {
+    event.preventDefault();
+    shiftBy(steps[event.key] * STEP_MINUTES);
+  }
+});
+
+// ---- Settings and mini mode ----
+
+function openSettings(): void {
+  settingsOpen = true;
+  refreshSettingsPage();
+  settingsView.hidden = false;
+  clock.hidden = true;
+  footer.hidden = true;
+  badge.hidden = true;
+  $("settings-back").focus();
+}
+
+function closeSettings(): void {
+  settingsOpen = false;
+  settingsView.hidden = true;
+  clock.hidden = false;
+  footer.hidden = false;
+  render();
+}
+
+$("settings-button").addEventListener("click", () => (settingsOpen ? closeSettings() : openSettings()));
+$("settings-back").addEventListener("click", closeSettings);
+
+async function enterMini(): Promise<void> {
+  if (settingsOpen) closeSettings();
+  await setMini(true, snapshot(settings), settings);
+}
+$("mini-button").addEventListener("click", enterMini);
+$("open-mini").addEventListener("click", enterMini);
+$("mini-expand").addEventListener("click", async () => {
+  await setMini(false, snapshot(settings), settings);
+  render();
+});
 
 // ---- Auto-hiding top bar ----
 // The window has no title bar. Ours slides down when the mouse reaches the top edge (or a keyboard user
 // tabs into it) and slides away again shortly after the mouse moves down or leaves the window.
 
-const bar = document.getElementById("app-bar")!;
+const bar = $("app-bar");
 const REVEAL_ZONE = 24; // px from the top of the window
 let hideTimer: number | undefined;
 
@@ -67,6 +296,7 @@ function scheduleHide(): void {
 }
 
 document.addEventListener("mousemove", (event) => {
+  if (isMini()) return;
   if (event.clientY <= REVEAL_ZONE) showBar();
   else if (bar.classList.contains("shown") && event.clientY > bar.offsetHeight) scheduleHide();
 });
@@ -77,12 +307,12 @@ bar.addEventListener("focusout", scheduleHide);
 async function setUpWindowControls(): Promise<void> {
   const { getCurrentWindow } = await import("@tauri-apps/api/window");
   const appWindow = getCurrentWindow();
-  const maximize = document.getElementById("maximize")!;
+  const maximize = $("maximize");
 
   document.querySelector<HTMLElement>(".window-controls")!.hidden = false;
-  document.getElementById("minimize")!.addEventListener("click", () => appWindow.minimize());
+  $("minimize").addEventListener("click", () => appWindow.minimize());
   maximize.addEventListener("click", () => appWindow.toggleMaximize());
-  document.getElementById("close")!.addEventListener("click", () => appWindow.close());
+  $("close").addEventListener("click", () => appWindow.close());
 
   // Swap the maximize icon for a "restore" icon while the window is maximized.
   const square = maximize.innerHTML;
@@ -99,6 +329,7 @@ async function setUpWindowControls(): Promise<void> {
 
 // Loaded lazily so the browser preview (npm run dev) doesn't touch the Tauri plugins.
 async function setUpDesktop(): Promise<void> {
+  await restoreIfTooSmall();
   setUpWindowControls();
 
   const { scheduleUpdateChecks } = await import("./updates");
@@ -117,221 +348,14 @@ async function setUpDesktop(): Promise<void> {
   }
 }
 
-function project(lat: number, lon: number): [number, number] {
-  return [(lon + 180) * scaleX, (LAT_TOP - lat) * scaleY];
-}
+// ---- Start ----
 
-function timeParts(date: Date, timeZone: string, hour24: boolean): { time: string; period: string } {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone,
-    hour: "numeric",
-    minute: "2-digit",
-    hourCycle: hour24 ? "h23" : "h12",
-  }).formatToParts(date);
-  const get = (type: Intl.DateTimeFormatPartTypes) => parts.find((p) => p.type === type)?.value ?? "";
-  return { time: `${get("hour")}:${get("minute")}`, period: hour24 ? "" : get("dayPeriod").charAt(0) };
-}
-
-/** The calendar day (days since 1970) it is in a time zone at a given moment. */
-function localDay(date: Date, timeZone: string): number {
-  const parts = new Intl.DateTimeFormat("en-US", { timeZone, year: "numeric", month: "numeric", day: "numeric" }).formatToParts(date);
-  const get = (type: Intl.DateTimeFormatPartTypes) => Number(parts.find((p) => p.type === type)?.value);
-  return Date.UTC(get("year"), get("month") - 1, get("day")) / 86400000;
-}
-
-function escapeXml(text: string): string {
-  return text.replace(/[<>&"']/g, (ch) => `&#${ch.charCodeAt(0)};`);
-}
-
-// ---- Time scrubbing ----
-// Click a city to select it, then scroll (or use the arrow keys) to move time forward or back.
-// Every city, and the day/night shading, then shows that moment instead of now.
-
-const STEP_MINUTES = 15; // 15-minute steps also land on half- and quarter-hour time zones
-const WHEEL_STEP = 100; // wheel distance per step: one mouse-wheel notch; touchpads add up smaller moves
-const MAX_OFFSET_MINUTES = 7 * 24 * 60;
-
-let selectedKey: string | null = null;
-let offsetMinutes = 0;
-let wheelDistance = 0;
-
-const cityKey = (city: City) => `${city.name}|${city.lat}|${city.lon}`;
-
-function select(key: string): void {
-  selectedKey = key;
+onStateChange(render);
+onSettingsChanged(() => {
+  settings = loadSettings();
   render();
-}
-
-function clearSelection(): void {
-  selectedKey = null;
-  offsetMinutes = 0;
-  wheelDistance = 0;
-  render();
-}
-
-function shiftBy(minutes: number): void {
-  offsetMinutes = Math.max(-MAX_OFFSET_MINUTES, Math.min(MAX_OFFSET_MINUTES, offsetMinutes + minutes));
-  render();
-}
-
-/** "+4 hr", "−2 hr 30 min", "+45 min". */
-function formatOffset(minutes: number): string {
-  const sign = minutes < 0 ? "−" : "+";
-  const hours = Math.floor(Math.abs(minutes) / 60);
-  const mins = Math.abs(minutes) % 60;
-  if (hours === 0) return `${sign}${mins} min`;
-  return mins ? `${sign}${hours} hr ${mins} min` : `${sign}${hours} hr`;
-}
-
-svg.addEventListener("click", (event) => {
-  const pin = (event.target as Element).closest<SVGGElement>("[data-key]");
-  if (!pin) {
-    if (selectedKey) clearSelection();
-    return;
-  }
-  if (pin.dataset.key === selectedKey) clearSelection();
-  else select(pin.dataset.key!);
 });
-
-svg.addEventListener(
-  "wheel",
-  (event) => {
-    if (!selectedKey) return;
-    event.preventDefault();
-    wheelDistance += event.deltaMode === WheelEvent.DOM_DELTA_LINE ? event.deltaY * 33 : event.deltaY;
-    const steps = Math.trunc(wheelDistance / WHEEL_STEP);
-    if (steps === 0) return;
-    wheelDistance -= steps * WHEEL_STEP;
-    shiftBy(-steps * STEP_MINUTES); // scrolling up moves time forward
-  },
-  { passive: false },
-);
-
-// Pins are focusable buttons: Enter or Space selects one.
-svg.addEventListener("keydown", (event) => {
-  const pin = (event.target as Element).closest<SVGGElement>("[data-key]");
-  if (pin && (event.key === "Enter" || event.key === " ")) {
-    event.preventDefault();
-    pin.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-  }
-});
-
-const KEY_STEPS: Record<string, number> = { ArrowUp: 1, ArrowRight: 1, ArrowDown: -1, ArrowLeft: -1, PageUp: 4, PageDown: -4 };
-
-document.addEventListener("keydown", (event) => {
-  if (!selectedKey || document.getElementById("clock-view")!.hidden) return;
-  if (event.key === "Escape") {
-    clearSelection();
-  } else if (event.key in KEY_STEPS) {
-    event.preventDefault();
-    shiftBy(KEY_STEPS[event.key] * STEP_MINUTES);
-  }
-});
-
-// ---- Drawing ----
-
-// The ocean, coastlines and frame never change, so they are drawn once; the night shading, pins and
-// offset badge are redrawn every minute and on every scroll step.
-svg.innerHTML = `
-  <defs>
-    <clipPath id="card"><rect width="${WIDTH}" height="${HEIGHT}" rx="${RADIUS}"/></clipPath>
-    <filter id="soft" x="-5%" y="-5%" width="110%" height="110%"><feGaussianBlur stdDeviation="1.4 1.1"/></filter>
-  </defs>
-  <g clip-path="url(#card)">
-    <rect class="ocean" width="${WIDTH}" height="${HEIGHT}"/>
-    <g transform="${MAP_TRANSFORM}">
-      <path class="land" d="${land}" fill-rule="evenodd"/>
-      <path id="night" class="night" filter="url(#soft)"/>
-    </g>
-    <g id="pins" class="pins"></g>
-    <g id="offset-badge" class="badge" display="none">
-      <rect class="badge-bg" rx="15"/>
-      <text class="badge-text" x="${WIDTH / 2}" y="40" text-anchor="middle"></text>
-    </g>
-  </g>
-  <rect class="edge" x="1" y="1" width="${WIDTH - 2}" height="${HEIGHT - 2}" rx="${RADIUS - 1}"/>`;
-
-const nightLayer = svg.querySelector<SVGPathElement>("#night")!;
-const pinLayer = svg.querySelector<SVGGElement>("#pins")!;
-const badge = svg.querySelector<SVGGElement>("#offset-badge")!;
-const badgeBg = badge.querySelector<SVGRectElement>("rect")!;
-const badgeText = badge.querySelector<SVGTextElement>("text")!;
-
-function renderPin(city: City, now: Date, at: Date, sun: SunPosition): string {
-  const [x, y] = project(city.lat, city.lon);
-  const key = cityKey(city);
-  const selected = key === selectedKey;
-  const { time, period } = timeParts(at, city.timeZone, display.hour24);
-  const dayChange = offsetMinutes ? localDay(at, city.timeZone) - localDay(now, city.timeZone) : 0;
-
-  const dot = isDaylight(city.lat, city.lon, sun)
-    ? `<circle class="pin-day" cx="${x}" cy="${y}" r="8"/>`
-    : `<circle class="pin-night" cx="${x}" cy="${y}" r="6.5"/>`;
-  const halo = selected ? `<circle class="halo" cx="${x}" cy="${y}" r="15"/>` : "";
-
-  // Top-left (or top-right, for left-hand labels) corner of the two-line label block.
-  let lx = x + 18;
-  let top = y - 12;
-  let anchor = "start";
-  if (city.label === "left") {
-    lx = x - 18;
-    anchor = "end";
-  } else if (city.label === "above") {
-    lx = x - 10;
-    top = y - 62;
-  } else if (city.label === "below") {
-    lx = x - 10;
-    top = y + 16;
-  }
-
-  const periodSpan = period ? `<tspan class="period" dx="3">${period}</tspan>` : "";
-  const daySpan = dayChange ? `<tspan class="day" dx="4">${dayChange > 0 ? "+" : "−"}${Math.abs(dayChange)}d</tspan>` : "";
-  const spoken = `${city.name}, ${time}${period ? ` ${period}M` : ""}`;
-  return `<g class="pin${selected ? " selected" : ""}" data-key="${escapeXml(key)}" tabindex="0" role="button" aria-pressed="${selected}" aria-label="${escapeXml(spoken)}">
-    <circle class="hit" cx="${x}" cy="${y}" r="22"/>
-    ${halo}${dot}
-    <text class="code" x="${lx}" y="${top + 17}" text-anchor="${anchor}">${escapeXml(city.code)}</text>
-    <text class="time" x="${lx}" y="${top + 45}" text-anchor="${anchor}">${time}${periodSpan}${daySpan}</text>
-  </g>`;
-}
-
-function renderBadge(): void {
-  if (!selectedKey) {
-    badge.setAttribute("display", "none");
-    return;
-  }
-  badgeText.innerHTML = offsetMinutes
-    ? `<tspan class="badge-main">${formatOffset(offsetMinutes)}</tspan><tspan class="badge-hint" dx="12">Esc returns to now</tspan>`
-    : `<tspan class="badge-hint">Scroll to change the time</tspan>`;
-  badge.setAttribute("display", "inline");
-  const box = badgeText.getBBox();
-  badgeBg.setAttribute("x", String(box.x - 16));
-  badgeBg.setAttribute("y", String(box.y - 6));
-  badgeBg.setAttribute("width", String(box.width + 32));
-  badgeBg.setAttribute("height", String(box.height + 12));
-}
-
-function render(): void {
-  // Forget the selection if that city was removed in Settings.
-  if (selectedKey && !settings.cities.some((c) => cityKey(c) === selectedKey)) {
-    selectedKey = null;
-    offsetMinutes = 0;
-  }
-  const now = new Date();
-  const at = new Date(now.getTime() + offsetMinutes * 60000);
-  const sun = sunPosition(at);
-
-  nightLayer.setAttribute("d", nightPath(sun));
-  pinLayer.classList.toggle("shifted", offsetMinutes !== 0);
-  pinLayer.innerHTML = settings.cities.map((c) => renderPin(c, now, at, sun)).join("");
-  renderBadge();
-
-  const label = settings.cities.map((c) => `${c.name} ${timeParts(at, c.timeZone, display.hour24).time}`).join(", ");
-  const when = offsetMinutes ? ` (${formatOffset(offsetMinutes)} from now)` : "";
-  svg.setAttribute("aria-label", `World clock${when}: ${label}`);
-  // Redrawing replaces the pins, so put keyboard focus back on the selected one.
-  if (selectedKey) svg.querySelector<SVGGElement>(".pin.selected")?.focus({ preventScroll: true });
-}
+if (inTauri) setUpDesktop();
 
 // Redraw whenever the minute changes. Checking often (rather than sleeping a full minute)
 // keeps the clock right after the computer wakes from sleep.
@@ -343,7 +367,6 @@ function tick(): void {
     render();
   }
 }
-
 tick();
 setInterval(tick, 5000);
 document.addEventListener("visibilitychange", tick);

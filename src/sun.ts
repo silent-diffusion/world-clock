@@ -25,12 +25,42 @@ export function sunPosition(date: Date): SunPosition {
   };
 }
 
-/** True when the sun is above the horizon at the given place. */
-export function isDaylight(lat: number, lon: number, sun: SunPosition): boolean {
+/** The sun's height above the horizon at a place, in degrees (negative below it). */
+export function solarElevation(lat: number, lon: number, sun: SunPosition): number {
   const sinElevation =
     Math.sin(lat * RAD) * Math.sin(sun.lat * RAD) +
     Math.cos(lat * RAD) * Math.cos(sun.lat * RAD) * Math.cos((lon - sun.lon) * RAD);
-  return sinElevation > 0;
+  return Math.asin(Math.max(-1, Math.min(1, sinElevation))) / RAD;
+}
+
+/** True when the sun is above the horizon at the given place. */
+export function isDaylight(lat: number, lon: number, sun: SunPosition): boolean {
+  return solarElevation(lat, lon, sun) > 0;
+}
+
+export interface SunTimes {
+  sunrise: Date | null;
+  sunset: Date | null;
+  /** Evening golden hour starts when the sun sinks below 6°. */
+  goldenHour: Date | null;
+}
+
+/** Sunrise, sunset and evening golden hour during the 24 hours from `dayStart` (a local midnight). */
+export function sunTimes(lat: number, lon: number, dayStart: Date): SunTimes {
+  const HORIZON = -0.833; // standard refraction-corrected sunrise/sunset altitude
+  const STEP = 2 * 60_000;
+  const result: SunTimes = { sunrise: null, sunset: null, goldenHour: null };
+  let prev: number | null = null;
+  for (let t = dayStart.getTime(); t <= dayStart.getTime() + 86_400_000; t += STEP) {
+    const e = solarElevation(lat, lon, sunPosition(new Date(t)));
+    if (prev !== null) {
+      if (prev < HORIZON && e >= HORIZON) result.sunrise = new Date(t);
+      if (prev >= HORIZON && e < HORIZON) result.sunset = new Date(t);
+      if (prev >= 6 && e < 6) result.goldenHour = new Date(t);
+    }
+    prev = e;
+  }
+  return result;
 }
 
 /**
