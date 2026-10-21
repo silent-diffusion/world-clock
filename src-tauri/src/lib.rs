@@ -5,6 +5,9 @@ use tauri::{
 };
 use tauri_plugin_window_state::StateFlags;
 
+mod desktop;
+mod update;
+
 /// Opens the settings window, or brings it to the front if it is already open.
 fn open_settings(app: &AppHandle) {
     if let Some(window) = app.get_webview_window("settings") {
@@ -27,11 +30,11 @@ fn open_settings_window(app: AppHandle) {
     open_settings(&app);
 }
 
+/// Shows the widget if it was hidden. It stays on the desktop layer, so it isn't focused or raised.
 fn show_widget(app: &AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
         let _ = window.unminimize();
         let _ = window.show();
-        let _ = window.set_focus();
     }
 }
 
@@ -45,17 +48,22 @@ pub fn run() {
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,
             Some(vec!["--autostart"]),
         ))
-        // Remembers where the widget sits and how big it is; the settings window always opens centred.
+        // Remembers where the widget sits (its size comes from Settings); the settings window always opens centred.
         .plugin(
             tauri_plugin_window_state::Builder::new()
                 .with_denylist(&["settings"])
-                .with_state_flags(StateFlags::POSITION | StateFlags::SIZE)
+                .with_state_flags(StateFlags::POSITION)
                 .build(),
         )
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![open_settings_window])
+        .invoke_handler(tauri::generate_handler![open_settings_window, update::install_update])
         .setup(|app| {
+            update::clean_up(app.handle());
+            if let Some(widget) = app.get_webview_window("main") {
+                desktop::pin_to_desktop(&widget);
+            }
+
             let settings = MenuItem::with_id(app, "settings", "Settings…", true, None::<&str>)?;
             let updates = MenuItem::with_id(app, "updates", "Check for updates", true, None::<&str>)?;
             let separator = PredefinedMenuItem::separator(app)?;

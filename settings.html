@@ -27,6 +27,14 @@
         <h2 id="general-heading">General</h2>
         <div class="card rows">
           <label class="row">
+            <span>Widget size</span>
+            <select id="widget-size">
+              <option value="small">Small</option>
+              <option value="medium">Medium</option>
+              <option value="large">Large</option>
+            </select>
+          </label>
+          <label class="row">
             <span>Start World Clock when I sign in</span>
             <input id="autostart" type="checkbox" />
           </label>
@@ -46,7 +54,7 @@
               <span id="update-status" class="hint" role="status"></span>
             </div>
             <div class="buttons">
-              <button id="download" type="button" class="primary" hidden>Download</button>
+              <button id="install" type="button" class="primary" hidden>Install update</button>
               <button id="check-now" type="button">Check now</button>
             </div>
           </div>

@@ -1,5 +1,5 @@
 import { defaultLabelSide, makeCode, type City, type LabelSide } from "./cities";
-import { inTauri, loadSettings, onSettingsChanged, saveSettings, type Settings } from "./settings";
+import { inTauri, loadSettings, onSettingsChanged, saveSettings, type Settings, type WidgetSize } from "./settings";
 
 interface CityRecord {
   city: string;
@@ -27,7 +27,8 @@ const autoUpdates = document.getElementById("auto-updates") as HTMLInputElement;
 const version = document.getElementById("version") as HTMLSpanElement;
 const updateStatus = document.getElementById("update-status") as HTMLSpanElement;
 const checkNow = document.getElementById("check-now") as HTMLButtonElement;
-const download = document.getElementById("download") as HTMLButtonElement;
+const install = document.getElementById("install") as HTMLButtonElement;
+const widgetSize = document.getElementById("widget-size") as HTMLSelectElement;
 
 let settings: Settings = loadSettings();
 let matches: CityRecord[] = [];
@@ -201,31 +202,45 @@ async function initUpdates(): Promise<void> {
     return;
   }
   const { getVersion } = await import("@tauri-apps/api/app");
-  const { findUpdate, openDownload } = await import("./updates");
+  const { findUpdate, installOrOfferDownload } = await import("./updates");
   version.textContent = `Version ${await getVersion()}`;
 
   checkNow.addEventListener("click", async () => {
     checkNow.disabled = true;
-    download.hidden = true;
+    install.hidden = true;
     updateStatus.textContent = "Checking GitHub…";
     try {
       const { latest } = await findUpdate();
       updateStatus.textContent = latest ? `Version ${latest} is available.` : "You have the latest version.";
-      download.hidden = !latest;
+      install.hidden = !latest;
     } catch {
       updateStatus.textContent = "Couldn't reach GitHub. Try again later.";
     } finally {
       checkNow.disabled = false;
     }
   });
-  download.addEventListener("click", () => openDownload());
+
+  install.addEventListener("click", async () => {
+    install.disabled = true;
+    checkNow.disabled = true;
+    updateStatus.textContent = "Downloading the update… World Clock will restart when it's installed.";
+    await installOrOfferDownload(); // only returns if the install didn't start
+    updateStatus.textContent = "";
+    install.disabled = false;
+    checkNow.disabled = false;
+  });
 }
+
+// ---- Widget size ----
+
+widgetSize.addEventListener("change", () => update((s) => (s.widgetSize = widgetSize.value as WidgetSize), false));
 
 // ---- Start ----
 
 function syncFromSettings(): void {
   settings = loadSettings();
   autoUpdates.checked = settings.autoCheckUpdates;
+  widgetSize.value = settings.widgetSize;
   renderCities();
 }
 

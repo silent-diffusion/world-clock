@@ -1,7 +1,13 @@
 import { DEFAULT_CITIES, type City } from "./cities";
 
+export type WidgetSize = "small" | "medium" | "large";
+
+/** Widget widths in logical pixels; the height keeps the map's 1000×405 proportions. */
+export const WIDGET_WIDTHS: Record<WidgetSize, number> = { small: 520, medium: 720, large: 960 };
+
 export interface Settings {
   cities: City[];
+  widgetSize: WidgetSize;
   /** Check GitHub for a newer release on launch and once a day. */
   autoCheckUpdates: boolean;
 }
@@ -12,12 +18,13 @@ const CHANGED_EVENT = "settings-changed";
 export const inTauri = "__TAURI_INTERNALS__" in window;
 
 export function loadSettings(): Settings {
-  const defaults: Settings = { cities: DEFAULT_CITIES, autoCheckUpdates: true };
+  const defaults: Settings = { cities: DEFAULT_CITIES, widgetSize: "medium", autoCheckUpdates: true };
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "null") as Partial<Settings> | null;
     if (!saved) return defaults;
     return {
       cities: Array.isArray(saved.cities) ? saved.cities : defaults.cities,
+      widgetSize: saved.widgetSize && saved.widgetSize in WIDGET_WIDTHS ? saved.widgetSize : defaults.widgetSize,
       autoCheckUpdates: saved.autoCheckUpdates ?? defaults.autoCheckUpdates,
     };
   } catch {

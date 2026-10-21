@@ -1,6 +1,6 @@
 import type { City } from "./cities";
 import { landPath } from "./map";
-import { inTauri, loadSettings, onSettingsChanged } from "./settings";
+import { inTauri, loadSettings, onSettingsChanged, WIDGET_WIDTHS } from "./settings";
 import { isDaylight, nightPath, sunPosition, type SunPosition } from "./sun";
 
 // The widget is drawn in a fixed 1000×405 coordinate space and scaled to the window by the SVG viewBox.
@@ -23,7 +23,15 @@ let settings = loadSettings();
 onSettingsChanged(() => {
   settings = loadSettings();
   render();
+  if (inTauri) applyWidgetSize();
 });
+
+// The widget isn't resizable by dragging; its size is chosen in Settings.
+async function applyWidgetSize(): Promise<void> {
+  const { getCurrentWindow, LogicalSize } = await import("@tauri-apps/api/window");
+  const width = WIDGET_WIDTHS[settings.widgetSize];
+  await getCurrentWindow().setSize(new LogicalSize(width, Math.round((width * HEIGHT) / WIDTH)));
+}
 
 const svg = document.getElementById("widget") as unknown as SVGSVGElement;
 const land = landPath();
@@ -40,6 +48,8 @@ async function setUpDesktop(): Promise<void> {
   const { invoke } = await import("@tauri-apps/api/core");
   const { listen } = await import("@tauri-apps/api/event");
   const { promptForUpdate, scheduleUpdateChecks } = await import("./updates");
+
+  applyWidgetSize();
 
   // Right-click the widget to open settings.
   svg.addEventListener("contextmenu", (event) => {

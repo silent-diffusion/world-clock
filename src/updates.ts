@@ -4,7 +4,7 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 
 const REPO = "silent-diffusion/world-clock";
 const LATEST_RELEASE_API = `https://api.github.com/repos/${REPO}/releases/latest`;
-// The release workflow uploads the newest installer under this fixed name.
+// Fallback when the in-app install fails. The release workflow uploads the newest installer under this fixed name.
 const DOWNLOAD_URL = `https://github.com/${REPO}/releases/latest/download/World-Clock-Setup.exe`;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -29,6 +29,31 @@ export function openDownload(): Promise<void> {
   return openUrl(DOWNLOAD_URL);
 }
 
+/**
+ * Downloads the newest installer into the app's data folder, checks it against GitHub's checksum,
+ * and runs it. The app quits and the installer starts the new version when it's done.
+ */
+export async function installUpdate(): Promise<void> {
+  const { invoke } = await import("@tauri-apps/api/core");
+  await invoke("install_update");
+}
+
+/** Installs the update; if that fails, offers the installer download in the browser instead. */
+export async function installOrOfferDownload(): Promise<void> {
+  try {
+    await installUpdate();
+  } catch (error) {
+    console.warn("Update install failed", error);
+    const download = await ask(`The update couldn't be installed automatically.\n\n${error}\n\nDownload the installer from GitHub instead?`, {
+      title: "World Clock",
+      kind: "warning",
+      okLabel: "Download",
+      cancelLabel: "Cancel",
+    });
+    if (download) await openDownload();
+  }
+}
+
 let checking = false;
 
 /**
@@ -41,13 +66,13 @@ export async function promptForUpdate(manual = false): Promise<void> {
   try {
     const { current, latest } = await findUpdate();
     if (latest) {
-      const download = await ask(`World Clock ${latest} is available. You have ${current}.\n\nDownload the new installer now?`, {
+      const install = await ask(`World Clock ${latest} is available. You have ${current}.`, {
         title: "Update available",
         kind: "info",
-        okLabel: "Download",
+        okLabel: "Install and restart",
         cancelLabel: "Later",
       });
-      if (download) await openDownload();
+      if (install) await installOrOfferDownload();
     } else if (manual) {
       await message(`You have the latest version (${current}).`, { title: "World Clock", kind: "info" });
     }
