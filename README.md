@@ -14,8 +14,10 @@ Run the installer; no administrator rights are needed. Every release is listed o
 > **Windows SmartScreen:** the installer is not code-signed with a paid certificate yet,
 > so Windows may show "Windows protected your PC". Click **More info → Run anyway**.
 
-World Clock is a normal app window with two tabs: **Clock** shows the map, and
-**Settings** is where you manage cities, start-at-sign-in and updates.
+World Clock opens as a clean window with just the map: no title bar or buttons. Move
+the mouse to the **top edge** of the window to reveal a bar with the **Clock** and
+**Settings** tabs and the minimize, maximize and close buttons. Drag that bar to move
+the window, double-click it to maximize, and drag the window edges to resize.
 
 ## Features
 
@@ -25,8 +27,8 @@ World Clock is a normal app window with two tabs: **Clock** shows the map, and
   time in a compact `11:24 A` / `5:24 P` style.
 - **Daylight-saving aware**: times come from the IANA time zone database, so DST
   changes are handled automatically.
-- **One app, one window**: resize it however you like; it remembers its size and
-  position. Opening World Clock again brings the existing window to the front.
+- **One app, one window**: no title bar until you need it; resize it however you like
+  and it remembers its size and position. Opening World Clock again brings the existing window to the front.
 - **Starts when you sign in** to Windows (you can turn that off in Settings).
 - **Edit your cities**: search about 7,000 cities, add or remove them, sort the list by
   date added, name or time zone, change the short label and which side of the pin it

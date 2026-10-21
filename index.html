@@ -9,10 +9,22 @@
     <script type="module" src="/src/main.ts"></script>
   </head>
   <body>
-    <header class="app-bar">
+    <!-- Hidden until the mouse reaches the top edge of the window (see main.ts). The empty space is the drag handle. -->
+    <header id="app-bar" class="app-bar" data-tauri-drag-region>
       <div class="tabs" role="tablist" aria-label="World Clock">
         <button type="button" role="tab" data-view="clock" aria-selected="true" aria-controls="clock-view">Clock</button>
         <button type="button" role="tab" data-view="settings" aria-selected="false" aria-controls="settings-view">Settings</button>
+      </div>
+      <div class="window-controls" hidden>
+        <button type="button" id="minimize" aria-label="Minimize" title="Minimize">
+          <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M0 5h10" stroke="currentColor" stroke-width="1"/></svg>
+        </button>
+        <button type="button" id="maximize" aria-label="Maximize" title="Maximize">
+          <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><rect x="0.5" y="0.5" width="9" height="9" fill="none" stroke="currentColor" stroke-width="1"/></svg>
+        </button>
+        <button type="button" id="close" class="close" aria-label="Close" title="Close">
+          <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M0 0l10 10M10 0L0 10" stroke="currentColor" stroke-width="1"/></svg>
+        </button>
       </div>
     </header>
 
