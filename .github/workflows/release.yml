@@ -1,0 +1,54 @@
+# Builds the Windows installer and publishes it as a GitHub Release when a version tag (e.g. v0.1.0) is pushed.
+# The release also gets latest.json, which installed copies of the app read to find updates.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: lts/*
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+
+      - run: npm ci
+
+      - name: Build and publish release
+        uses: tauri-apps/tauri-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Signs the update packages; the matching public key is in src-tauri/tauri.conf.json.
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: World Clock ${{ github.ref_name }}
+          generateReleaseNotes: true
+          releaseDraft: false
+          prerelease: false
+          updaterJsonPreferNsis: true
+
+      # A copy with a fixed name, so .../releases/latest/download/World-Clock-Setup.exe always gets the newest installer.
+      - name: Upload installer under a fixed name
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          installer=$(ls src-tauri/target/release/bundle/nsis/*-setup.exe | head -1)
+          cp "$installer" World-Clock-Setup.exe
+          gh release upload "${{ github.ref_name }}" World-Clock-Setup.exe --clobber

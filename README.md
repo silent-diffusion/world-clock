@@ -3,8 +3,19 @@
 A free, open-source desktop world clock widget. It shows a world map with a live
 day/night shading line and the local time in the cities you care about, at a glance.
 
-> **Status:** early design. Nothing is built yet; this README describes what the app
-> is meant to become.
+## Download
+
+**[Download World Clock for Windows](https://github.com/silent-diffusion/world-clock/releases/latest/download/World-Clock-Setup.exe)**
+(Windows 10/11, 64-bit)
+
+Run the installer; no administrator rights are needed. Every release is listed on the
+[Releases page](https://github.com/silent-diffusion/world-clock/releases).
+
+> **Windows SmartScreen:** the installer is not code-signed with a paid certificate yet,
+> so Windows may show "Windows protected your PC". Click **More info → Run anyway**.
+
+> **Status:** early. The widget works; settings (editing cities, themes, always on top)
+> are next.
 
 ## Features
 
@@ -82,6 +93,18 @@ Project layout:
 | `src/map.ts` | Coastlines from Natural Earth |
 | `src/cities.ts` | The default list of cities |
 | `src-tauri/` | The Rust/Tauri desktop shell and window settings |
+
+## Releasing (maintainers)
+
+1. Bump the version in `package.json`, `src-tauri/Cargo.toml` and `src-tauri/tauri.conf.json`.
+2. Commit, then tag and push: `git tag v0.2.0 && git push origin main v0.2.0`.
+3. The [Release workflow](.github/workflows/release.yml) builds the installer on GitHub,
+   signs the update package and publishes the release with `latest.json`. Installed
+   copies pick it up on their next update check.
+
+The workflow needs the repository secret `TAURI_SIGNING_PRIVATE_KEY` (the contents of the
+private key made with `npx tauri signer generate`). Keep that key safe: if it is lost,
+installed copies can no longer accept updates.
 
 ## Contributing
 

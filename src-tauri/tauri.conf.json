@@ -30,13 +30,34 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["nsis"],
+    "targets": [
+      "nsis"
+    ],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "createUpdaterArtifacts": true,
+    "publisher": "silent-diffusion",
+    "shortDescription": "World clock widget with a live day/night map",
+    "windows": {
+      "nsis": {
+        "installMode": "currentUser"
+      }
+    }
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDFGMEZFNjFGQkM0MURCOEEKUldTSzIwRzhIK1lQSDdLd1d1STZHWnVOdnFwd1lKSGdqaGUzNjBTMjRtVk5Lei9xa001dU5BaVgK",
+      "endpoints": [
+        "https://github.com/silent-diffusion/world-clock/releases/latest/download/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive"
+      }
+    }
   }
 }

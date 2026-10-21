@@ -25,7 +25,13 @@ const settings: Settings = { look: "auto", hour24: false };
 const svg = document.getElementById("widget") as unknown as SVGSVGElement;
 const land = landPath();
 
-if (!("__TAURI_INTERNALS__" in window)) document.documentElement.classList.add("browser");
+const inTauri = "__TAURI_INTERNALS__" in window;
+if (inTauri) {
+  // Loaded lazily so the browser preview (npm run dev) doesn't touch the Tauri plugins.
+  import("./updates").then(({ scheduleUpdateChecks }) => scheduleUpdateChecks());
+} else {
+  document.documentElement.classList.add("browser");
+}
 document.documentElement.dataset.look = settings.look;
 
 function project(lat: number, lon: number): [number, number] {
