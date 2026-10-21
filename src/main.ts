@@ -139,8 +139,11 @@ clock.addEventListener("click", (event) => {
 });
 
 let wheelDistance = 0;
+// A trackpad swipe keeps sending "momentum" wheel events after the fingers lift. One gesture moves one
+// page: after a page turn, sideways events are ignored until they stop arriving for a moment.
 let swipeDistance = 0;
-let lastSwipe = 0;
+let swipeLocked = false;
+let swipeQuiet: number | undefined;
 clock.addEventListener(
   "wheel",
   (event) => {
@@ -148,11 +151,16 @@ clock.addEventListener(
     if (Math.abs(event.deltaX) > Math.abs(event.deltaY)) {
       // Sideways scrolling (trackpads, tilt wheels) swipes between views.
       event.preventDefault();
-      swipeDistance += event.deltaX * lines;
-      if (Math.abs(swipeDistance) > 60 && Date.now() - lastSwipe > 450) {
-        go(swipeDistance > 0 ? 1 : -1);
-        lastSwipe = Date.now();
+      clearTimeout(swipeQuiet);
+      swipeQuiet = window.setTimeout(() => {
+        swipeLocked = false;
         swipeDistance = 0;
+      }, 250);
+      if (swipeLocked) return;
+      swipeDistance += event.deltaX * lines;
+      if (Math.abs(swipeDistance) > 60) {
+        go(swipeDistance > 0 ? 1 : -1);
+        swipeLocked = true;
       }
       return;
     }
