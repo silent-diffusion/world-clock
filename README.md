@@ -48,8 +48,9 @@ move between views. Choose which views you want, and their order, in Settings.
   - **Dim cities where people are asleep** (11 PM to 7 AM local time).
   - **Times relative to the selected city**: labels show "+6h" instead of the time.
   - **Where it's already tomorrow**: shades the part of the world past midnight.
-- **Mini mode**: shrink to a slim strip of times that stays on top of other windows,
-  showing every city or only the ones you've pinned.
+- **Mini mode**: shrink to a slim strip of times, the same height as the Windows 11
+  taskbar. It opens sitting on the taskbar, stays on top of it (and every other window),
+  remembers where you drag it, and shows every city or only the ones you've pinned.
 - **Daylight-saving aware**: times come from the IANA time zone database, so clock changes
   are handled automatically.
 - **Edit your cities**: search about 7,000 cities, add or remove them, sort them, change
