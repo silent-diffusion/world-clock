@@ -4,86 +4,177 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>World Clock</title>
-    <link rel="stylesheet" href="/src/settings.css" />
     <link rel="stylesheet" href="/src/styles.css" />
     <script type="module" src="/src/main.ts"></script>
   </head>
   <body>
-    <!-- Hidden until the mouse reaches the top edge of the window (see main.ts). The empty space is the drag handle. -->
+    <!-- Hidden until the mouse reaches the top edge of the window (see shell.ts). The empty space is the drag handle. -->
     <header id="app-bar" class="app-bar" data-tauri-drag-region>
-      <div class="tabs" role="tablist" aria-label="World Clock">
-        <button type="button" role="tab" data-view="clock" aria-selected="true" aria-controls="clock-view">Clock</button>
-        <button type="button" role="tab" data-view="settings" aria-selected="false" aria-controls="settings-view">Settings</button>
-      </div>
-      <div class="window-controls" hidden>
-        <button type="button" id="minimize" aria-label="Minimize" title="Minimize">
-          <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M0 5h10" stroke="currentColor" stroke-width="1"/></svg>
+      <span id="date-line" class="date-line" data-tauri-drag-region></span>
+      <div id="view-tabs" class="tabs" role="tablist" aria-label="Views"></div>
+      <div class="bar-end">
+        <button type="button" id="mini-button" class="icon-button" aria-label="Mini mode" title="Mini mode">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="9" width="18" height="6" rx="2"/></svg>
         </button>
-        <button type="button" id="maximize" aria-label="Maximize" title="Maximize">
-          <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><rect x="0.5" y="0.5" width="9" height="9" fill="none" stroke="currentColor" stroke-width="1"/></svg>
+        <button type="button" id="settings-button" class="icon-button" aria-label="Settings" title="Settings">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
         </button>
-        <button type="button" id="close" class="close" aria-label="Close" title="Close">
-          <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M0 0l10 10M10 0L0 10" stroke="currentColor" stroke-width="1"/></svg>
-        </button>
+        <div class="window-controls" hidden>
+          <button type="button" id="minimize" aria-label="Minimize" title="Minimize">
+            <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M0 5h10" stroke="currentColor" stroke-width="1"/></svg>
+          </button>
+          <button type="button" id="maximize" aria-label="Maximize" title="Maximize">
+            <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><rect x="0.5" y="0.5" width="9" height="9" fill="none" stroke="currentColor" stroke-width="1"/></svg>
+          </button>
+          <button type="button" id="close" class="close" aria-label="Close" title="Close">
+            <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M0 0l10 10M10 0L0 10" stroke="currentColor" stroke-width="1"/></svg>
+          </button>
+        </div>
       </div>
     </header>
 
-    <section id="clock-view" class="clock-view" role="tabpanel" aria-label="Clock">
-      <svg id="map" viewBox="0 0 1000 405" preserveAspectRatio="xMidYMid meet" role="img" aria-label="World clock"></svg>
-    </section>
+    <div id="badge" class="badge" role="status" hidden></div>
 
-    <main id="settings-view" role="tabpanel" aria-label="Settings" hidden>
-      <section aria-labelledby="cities-heading">
-        <div class="section-head">
-          <h2 id="cities-heading">Cities</h2>
-          <label class="sort">
-            <span>Sort by</span>
-            <select id="city-sort">
-              <option value="added">Date added</option>
-              <option value="name">Name (A–Z)</option>
-              <option value="timezone">Time zone (west to east)</option>
-            </select>
-          </label>
-        </div>
-        <p class="hint">Shown on the map. Change the short label or where it sits next to the pin.</p>
-        <ul id="city-list" class="card"></ul>
-
-        <div class="search">
-          <label for="city-search">Add a city</label>
-          <input id="city-search" type="search" placeholder="Search for a city…" autocomplete="off" />
-          <ul id="search-results" class="card results" hidden></ul>
-        </div>
-      </section>
-
-      <section aria-labelledby="general-heading">
-        <h2 id="general-heading">General</h2>
-        <div class="card rows">
-          <label class="row">
-            <span>Start World Clock when I sign in</span>
-            <input id="autostart" type="checkbox" />
-          </label>
-        </div>
-      </section>
-
-      <section aria-labelledby="updates-heading">
-        <h2 id="updates-heading">Updates</h2>
-        <div class="card rows">
-          <label class="row">
-            <span>Check for updates automatically</span>
-            <input id="auto-updates" type="checkbox" />
-          </label>
-          <div class="row">
-            <div class="stack">
-              <span id="version">Version …</span>
-              <span id="update-status" class="hint" role="status"></span>
-            </div>
-            <div class="buttons">
-              <button id="install" type="button" class="primary" hidden>Install update</button>
-              <button id="check-now" type="button">Check now</button>
+    <main id="clock" class="clock">
+      <div id="track" class="track">
+        <section class="page map-page" data-view="map" aria-label="Map">
+          <div id="clock-alert" class="alert" role="status" hidden></div>
+          <div class="map-area">
+            <div id="map-box" class="map-box">
+              <svg id="map" viewBox="0 0 1000 405" preserveAspectRatio="none" role="img" aria-label="World map"></svg>
+              <div id="date-tags" class="date-tags" hidden></div>
+              <div id="pins" class="pins"></div>
+              <div id="details" class="details" role="dialog" hidden></div>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
+        <section class="page" data-view="day" aria-label="Day"><div id="day-view" class="day-view"></div></section>
+        <section class="page" data-view="sky" aria-label="Sky"><div id="sky-view" class="sky-view"></div></section>
+        <section class="page dial-page" data-view="dial" aria-label="Dial">
+          <svg id="dial" viewBox="0 0 1000 560" preserveAspectRatio="xMidYMid meet" role="img" aria-label="24-hour dial"></svg>
+        </section>
+        <section class="page" data-view="meet" aria-label="Meet"><div id="meet-view" class="meet-view"></div></section>
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <span id="hint" class="hint"></span>
+      <div id="dots" class="dots" aria-hidden="true"></div>
+      <span id="summary" class="summary"></span>
+    </footer>
+
+    <!-- Mini mode: a slim strip of times that stays on top of other windows. -->
+    <div id="mini" class="mini" data-tauri-drag-region hidden>
+      <span class="grip" aria-hidden="true" data-tauri-drag-region></span>
+      <div id="mini-cities" class="mini-cities" data-tauri-drag-region></div>
+      <button type="button" id="mini-expand" class="icon-button" aria-label="Open the full app" title="Open the full app">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+      </button>
+    </div>
+
+    <main id="settings-view" class="settings" hidden>
+      <div class="settings-head">
+        <button type="button" id="settings-back" class="back">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
+          Back to the clock
+        </button>
+        <h1>Settings</h1>
+        <span></span>
+      </div>
+
+      <div class="settings-body">
+        <section aria-labelledby="views-heading">
+          <div class="section-text">
+            <h2 id="views-heading">Views</h2>
+            <p class="hint">Swipe between the views you turn on, in this order. Drag to reorder. The map is always on.</p>
+          </div>
+          <ul id="view-list" class="card list"></ul>
+        </section>
+
+        <section aria-labelledby="extras-heading">
+          <div class="section-text">
+            <h2 id="extras-heading">On the map</h2>
+            <p class="hint">Extras you can layer onto the map.</p>
+          </div>
+          <div id="extras-list" class="card list"></div>
+        </section>
+
+        <section aria-labelledby="hours-heading">
+          <div class="section-text">
+            <h2 id="hours-heading">Working hours</h2>
+            <p class="hint">Used by the Day view and the meeting finder, in each city's local time.</p>
+          </div>
+          <div class="card inline-row">
+            <label>From <select id="work-start"></select></label>
+            <label>to <select id="work-end"></select></label>
+          </div>
+        </section>
+
+        <section aria-labelledby="mini-heading">
+          <h2 id="mini-heading">Mini mode</h2>
+          <div class="card list">
+            <div class="row">
+              <span class="row-text"><span class="row-title">Shrink to a strip</span><span class="row-sub">A slim bar of times that stays on top of other windows</span></span>
+              <button type="button" id="open-mini" class="primary">Open mini mode</button>
+            </div>
+            <label class="row">
+              <span class="row-text"><span class="row-title">Only pinned cities</span><span class="row-sub">Pin cities below to keep the strip short</span></span>
+              <input id="mini-pinned" type="checkbox" role="switch" class="switch" />
+            </label>
+          </div>
+        </section>
+
+        <section aria-labelledby="cities-heading">
+          <div class="section-head">
+            <h2 id="cities-heading">Cities</h2>
+            <label class="sort">
+              <span>Sort by</span>
+              <select id="city-sort">
+                <option value="added">Date added</option>
+                <option value="name">Name (A–Z)</option>
+                <option value="timezone">Time zone (west to east)</option>
+              </select>
+            </label>
+          </div>
+          <p class="hint">Change a city's short label, where it sits next to its pin, pin it for mini mode, or add a note.</p>
+          <ul id="city-list" class="card list"></ul>
+          <div class="search">
+            <label for="city-search">Add a city</label>
+            <input id="city-search" type="search" placeholder="Search for a city…" autocomplete="off" />
+            <ul id="search-results" class="card results" hidden></ul>
+          </div>
+        </section>
+
+        <section aria-labelledby="general-heading">
+          <h2 id="general-heading">General</h2>
+          <div class="card list">
+            <label class="row">
+              <span class="row-text"><span class="row-title">Start World Clock when I sign in</span></span>
+              <input id="autostart" type="checkbox" role="switch" class="switch" />
+            </label>
+          </div>
+        </section>
+
+        <section aria-labelledby="updates-heading">
+          <h2 id="updates-heading">Updates</h2>
+          <div class="card list">
+            <label class="row">
+              <span class="row-text"><span class="row-title">Check for updates automatically</span></span>
+              <input id="auto-updates" type="checkbox" role="switch" class="switch" />
+            </label>
+            <div class="row">
+              <span class="row-text">
+                <span id="version" class="row-title">Version …</span>
+                <span id="update-status" class="row-sub" role="status"></span>
+              </span>
+              <span class="buttons">
+                <button type="button" id="install" class="primary" hidden>Install update</button>
+                <button type="button" id="check-now">Check now</button>
+              </span>
+            </div>
+          </div>
+        </section>
+      </div>
     </main>
   </body>
 </html>
