@@ -1,5 +1,6 @@
-import { DEFAULT_CITIES, type City } from "./cities";
+import type { City } from "./cities";
 import { landPath } from "./map";
+import { inTauri, loadSettings, onSettingsChanged } from "./settings";
 import { isDaylight, nightPath, sunPosition, type SunPosition } from "./sun";
 
 // The widget is drawn in a fixed 1000×405 coordinate space and scaled to the window by the SVG viewBox.
@@ -15,24 +16,52 @@ const scaleY = HEIGHT / LAT_SPAN;
 // Maps (longitude, -latitude) onto widget pixels.
 const MAP_TRANSFORM = `matrix(${scaleX},0,0,${scaleY},${WIDTH / 2},${LAT_TOP * scaleY})`;
 
-interface Settings {
-  look: "auto" | "ocean" | "midnight" | "frost";
-  hour24: boolean;
-}
+// Display options that aren't in the settings window yet.
+const display = { look: "auto", hour24: false };
 
-const settings: Settings = { look: "auto", hour24: false };
+let settings = loadSettings();
+onSettingsChanged(() => {
+  settings = loadSettings();
+  render();
+});
 
 const svg = document.getElementById("widget") as unknown as SVGSVGElement;
 const land = landPath();
 
-const inTauri = "__TAURI_INTERNALS__" in window;
 if (inTauri) {
-  // Loaded lazily so the browser preview (npm run dev) doesn't touch the Tauri plugins.
-  import("./updates").then(({ scheduleUpdateChecks }) => scheduleUpdateChecks());
+  setUpDesktop();
 } else {
   document.documentElement.classList.add("browser");
 }
-document.documentElement.dataset.look = settings.look;
+document.documentElement.dataset.look = display.look;
+
+// Loaded lazily so the browser preview (npm run dev) doesn't touch the Tauri plugins.
+async function setUpDesktop(): Promise<void> {
+  const { invoke } = await import("@tauri-apps/api/core");
+  const { listen } = await import("@tauri-apps/api/event");
+  const { promptForUpdate, scheduleUpdateChecks } = await import("./updates");
+
+  // Right-click the widget to open settings.
+  svg.addEventListener("contextmenu", (event) => {
+    event.preventDefault();
+    invoke("open_settings_window");
+  });
+
+  listen("check-for-updates", () => promptForUpdate(true));
+  scheduleUpdateChecks(() => settings.autoCheckUpdates);
+
+  // Start at sign-in by default; after the first run, the setting is whatever the user chose.
+  const FIRST_RUN_KEY = "world-clock.autostart-initialized";
+  if (!localStorage.getItem(FIRST_RUN_KEY)) {
+    const { enable } = await import("@tauri-apps/plugin-autostart");
+    try {
+      await enable();
+      localStorage.setItem(FIRST_RUN_KEY, "1");
+    } catch (error) {
+      console.warn("Couldn't turn on start at sign-in", error);
+    }
+  }
+}
 
 function project(lat: number, lon: number): [number, number] {
   return [(lon + 180) * scaleX, (LAT_TOP - lat) * scaleY];
@@ -55,7 +84,7 @@ function escapeXml(text: string): string {
 
 function renderPin(city: City, now: Date, sun: SunPosition): string {
   const [x, y] = project(city.lat, city.lon);
-  const { time, period } = timeParts(now, city.timeZone, settings.hour24);
+  const { time, period } = timeParts(now, city.timeZone, display.hour24);
   const dot = isDaylight(city.lat, city.lon, sun)
     ? `<circle class="pin-day" cx="${x}" cy="${y}" r="8"/>`
     : `<circle class="pin-night" cx="${x}" cy="${y}" r="6.5"/>`;
@@ -84,7 +113,7 @@ function renderPin(city: City, now: Date, sun: SunPosition): string {
 function render(): void {
   const now = new Date();
   const sun = sunPosition(now);
-  const label = DEFAULT_CITIES.map((c) => `${c.name} ${timeParts(now, c.timeZone, settings.hour24).time}`).join(", ");
+  const label = settings.cities.map((c) => `${c.name} ${timeParts(now, c.timeZone, display.hour24).time}`).join(", ");
   svg.setAttribute("aria-label", `World clock: ${label}`);
   svg.innerHTML = `
     <defs>
@@ -97,7 +126,7 @@ function render(): void {
         <path class="land" d="${land}" fill-rule="evenodd"/>
         <path class="night" d="${nightPath(sun)}" filter="url(#soft)"/>
       </g>
-      <g class="pins">${DEFAULT_CITIES.map((c) => renderPin(c, now, sun)).join("")}</g>
+      <g class="pins">${settings.cities.map((c) => renderPin(c, now, sun)).join("")}</g>
     </g>
     <rect class="edge" x="1" y="1" width="${WIDTH - 2}" height="${HEIGHT - 2}" rx="${RADIUS - 1}"/>`;
 }

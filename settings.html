@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>World Clock Settings</title>
+    <link rel="stylesheet" href="/src/settings.css" />
+    <script type="module" src="/src/settings-page.ts"></script>
+  </head>
+  <body>
+    <main>
+      <h1>Settings</h1>
+
+      <section aria-labelledby="cities-heading">
+        <h2 id="cities-heading">Cities</h2>
+        <p class="hint">Shown on the widget. Change the short label or where it sits next to the pin.</p>
+        <ul id="city-list" class="card"></ul>
+
+        <div class="search">
+          <label for="city-search">Add a city</label>
+          <input id="city-search" type="search" placeholder="Search for a city…" autocomplete="off" />
+          <ul id="search-results" class="card results" hidden></ul>
+        </div>
+      </section>
+
+      <section aria-labelledby="general-heading">
+        <h2 id="general-heading">General</h2>
+        <div class="card rows">
+          <label class="row">
+            <span>Start World Clock when I sign in</span>
+            <input id="autostart" type="checkbox" />
+          </label>
+        </div>
+      </section>
+
+      <section aria-labelledby="updates-heading">
+        <h2 id="updates-heading">Updates</h2>
+        <div class="card rows">
+          <label class="row">
+            <span>Check for updates automatically</span>
+            <input id="auto-updates" type="checkbox" />
+          </label>
+          <div class="row">
+            <div class="stack">
+              <span id="version">Version …</span>
+              <span id="update-status" class="hint" role="status"></span>
+            </div>
+            <div class="buttons">
+              <button id="download" type="button" class="primary" hidden>Download</button>
+              <button id="check-now" type="button">Check now</button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>

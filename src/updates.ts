@@ -1,5 +1,5 @@
 import { getVersion } from "@tauri-apps/api/app";
-import { ask } from "@tauri-apps/plugin-dialog";
+import { ask, message } from "@tauri-apps/plugin-dialog";
 import { openUrl } from "@tauri-apps/plugin-opener";
 
 const REPO = "silent-diffusion/world-clock";
@@ -8,40 +8,64 @@ const LATEST_RELEASE_API = `https://api.github.com/repos/${REPO}/releases/latest
 const DOWNLOAD_URL = `https://github.com/${REPO}/releases/latest/download/World-Clock-Setup.exe`;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
+export interface UpdateInfo {
+  current: string;
+  /** The newer version on GitHub, or null when the installed one is the latest. */
+  latest: string | null;
+}
+
+/** Asks GitHub for the latest release. Throws when GitHub can't be reached. */
+export async function findUpdate(): Promise<UpdateInfo> {
+  const current = await getVersion();
+  const response = await fetch(LATEST_RELEASE_API, { headers: { Accept: "application/vnd.github+json" } });
+  if (response.status === 404) return { current, latest: null }; // no releases yet
+  if (!response.ok) throw new Error(`GitHub responded ${response.status}`);
+  const release: { tag_name: string } = await response.json();
+  const latest = release.tag_name.replace(/^v/, "");
+  return { current, latest: compareVersions(latest, current) > 0 ? latest : null };
+}
+
+export function openDownload(): Promise<void> {
+  return openUrl(DOWNLOAD_URL);
+}
+
 let checking = false;
 
-/** Asks GitHub for the latest release and, if it is newer, offers to download the installer. */
-export async function checkForUpdates(): Promise<void> {
+/**
+ * Checks for an update and offers to download it. Scheduled checks stay quiet when there is nothing new;
+ * a manual check (from the tray menu) also says when the app is up to date or GitHub can't be reached.
+ */
+export async function promptForUpdate(manual = false): Promise<void> {
   if (checking) return;
   checking = true;
   try {
-    const response = await fetch(LATEST_RELEASE_API, { headers: { Accept: "application/vnd.github+json" } });
-    if (!response.ok) return; // 404 until the first release exists
-    const release: { tag_name: string } = await response.json();
-
-    const latest = release.tag_name.replace(/^v/, "");
-    const current = await getVersion();
-    if (compareVersions(latest, current) <= 0) return;
-
-    const download = await ask(`World Clock ${latest} is available. You have ${current}.\n\nDownload the new installer now?`, {
-      title: "Update available",
-      kind: "info",
-      okLabel: "Download",
-      cancelLabel: "Later",
-    });
-    if (download) await openUrl(DOWNLOAD_URL);
+    const { current, latest } = await findUpdate();
+    if (latest) {
+      const download = await ask(`World Clock ${latest} is available. You have ${current}.\n\nDownload the new installer now?`, {
+        title: "Update available",
+        kind: "info",
+        okLabel: "Download",
+        cancelLabel: "Later",
+      });
+      if (download) await openDownload();
+    } else if (manual) {
+      await message(`You have the latest version (${current}).`, { title: "World Clock", kind: "info" });
+    }
   } catch (error) {
-    // Offline or GitHub unreachable: try again at the next scheduled check.
     console.warn("Update check failed", error);
+    if (manual) await message("Couldn't reach GitHub to check for updates. Try again later.", { title: "World Clock", kind: "warning" });
   } finally {
     checking = false;
   }
 }
 
-/** Checks shortly after launch and then once a day. */
-export function scheduleUpdateChecks(): void {
-  setTimeout(checkForUpdates, 5000);
-  setInterval(checkForUpdates, DAY_MS);
+/** Checks shortly after launch and then once a day, while automatic checks are turned on. */
+export function scheduleUpdateChecks(enabled: () => boolean): void {
+  const run = () => {
+    if (enabled()) promptForUpdate();
+  };
+  setTimeout(run, 5000);
+  setInterval(run, DAY_MS);
 }
 
 /** Compares dotted version numbers ("0.10.0" > "0.9.2"); returns a positive number when a is newer. */
