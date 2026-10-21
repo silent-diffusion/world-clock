@@ -1,6 +1,6 @@
 [package]
 name = "world-clock"
-version = "0.5.0"
+version = "0.5.1"
 description = "Desktop world clock widget with a live day/night map"
 authors = ["silent-diffusion"]
 license = "MIT"
