@@ -59,11 +59,29 @@ can follow.
 
 ## Getting started (for contributors)
 
-Setup instructions will be added once the project is scaffolded. You will need:
+You will need:
 
 - [Node.js](https://nodejs.org) (LTS)
 - [Rust](https://www.rust-lang.org/tools/install)
 - The [Tauri prerequisites](https://tauri.app/start/prerequisites/) for your OS
+  (on Windows: Microsoft C++ Build Tools and WebView2)
+
+```bash
+npm install
+npm run tauri dev     # run the desktop app with hot reload
+npm run dev           # or preview just the widget in a browser at http://localhost:1420
+npm run tauri build   # build the Windows installer
+```
+
+Project layout:
+
+| Path | What it is |
+| --- | --- |
+| `src/main.ts` | Draws the widget and redraws it every minute |
+| `src/sun.ts` | Sun position and the day/night line |
+| `src/map.ts` | Coastlines from Natural Earth |
+| `src/cities.ts` | The default list of cities |
+| `src-tauri/` | The Rust/Tauri desktop shell and window settings |
 
 ## Contributing
 

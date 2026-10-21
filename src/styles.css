@@ -1,0 +1,115 @@
+:root {
+  --ocean: #4f8bd6;
+  --land: rgba(14, 38, 86, 0.32);
+  --night: rgba(6, 14, 40, 0.52);
+  --text: #ffffff;
+  --edge: rgba(255, 255, 255, 0.35);
+  --text-shadow: rgba(4, 12, 32, 0.55);
+}
+
+/* "auto" follows the system theme: Ocean in light mode, Midnight in dark mode. */
+@media (prefers-color-scheme: dark) {
+  :root[data-look="auto"] {
+    --ocean: #13213b;
+    --land: #2b4675;
+    --night: rgba(0, 0, 0, 0.5);
+    --text: #eef3ff;
+    --edge: rgba(255, 255, 255, 0.14);
+    --text-shadow: rgba(0, 0, 0, 0.7);
+  }
+}
+
+:root[data-look="midnight"] {
+  --ocean: #13213b;
+  --land: #2b4675;
+  --night: rgba(0, 0, 0, 0.5);
+  --text: #eef3ff;
+  --edge: rgba(255, 255, 255, 0.14);
+  --text-shadow: rgba(0, 0, 0, 0.7);
+}
+
+:root[data-look="frost"] {
+  --ocean: #e9eff7;
+  --land: #bacce3;
+  --night: rgba(28, 48, 92, 0.26);
+  --text: #0d1a2d;
+  --edge: rgba(13, 26, 45, 0.18);
+  --text-shadow: rgba(255, 255, 255, 0.9);
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: transparent;
+  user-select: none;
+  font-family: "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif;
+}
+
+/* Outside Tauri (browser preview) there is no desktop behind the widget. */
+html.browser body {
+  background: #0f1216;
+}
+
+#widget {
+  display: block;
+  width: 100vw;
+  height: 100vh;
+}
+
+/* The whole SVG is the drag handle, so children must not catch the pointer. */
+#widget * {
+  pointer-events: none;
+}
+
+.ocean {
+  fill: var(--ocean);
+}
+
+.land {
+  fill: var(--land);
+}
+
+.night {
+  fill: var(--night);
+}
+
+.edge {
+  fill: none;
+  stroke: var(--edge);
+  stroke-width: 2;
+}
+
+.pins {
+  fill: var(--text);
+  filter: drop-shadow(0 1px 1.5px var(--text-shadow));
+}
+
+.pin-day {
+  fill: var(--text);
+  opacity: 0.92;
+}
+
+.pin-night {
+  fill: rgba(0, 0, 0, 0.25);
+  stroke: var(--text);
+  stroke-width: 3;
+}
+
+.code {
+  font-size: 21px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+}
+
+.time {
+  font-size: 27px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.period {
+  font-size: 15px;
+  font-weight: 700;
+}
