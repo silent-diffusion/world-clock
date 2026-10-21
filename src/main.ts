@@ -41,6 +41,8 @@ function showView(view: string): void {
     tab.setAttribute("aria-selected", String(active));
     document.getElementById(`${tab.dataset.view}-view`)!.hidden = !active;
   }
+  // The offset badge is sized from its rendered text, which can't be measured while the map is hidden.
+  if (view === "clock") render();
 }
 tabs.forEach((tab) => tab.addEventListener("click", () => showView(tab.dataset.view!)));
 
@@ -130,16 +132,142 @@ function timeParts(date: Date, timeZone: string, hour24: boolean): { time: strin
   return { time: `${get("hour")}:${get("minute")}`, period: hour24 ? "" : get("dayPeriod").charAt(0) };
 }
 
+/** The calendar day (days since 1970) it is in a time zone at a given moment. */
+function localDay(date: Date, timeZone: string): number {
+  const parts = new Intl.DateTimeFormat("en-US", { timeZone, year: "numeric", month: "numeric", day: "numeric" }).formatToParts(date);
+  const get = (type: Intl.DateTimeFormatPartTypes) => Number(parts.find((p) => p.type === type)?.value);
+  return Date.UTC(get("year"), get("month") - 1, get("day")) / 86400000;
+}
+
 function escapeXml(text: string): string {
   return text.replace(/[<>&"']/g, (ch) => `&#${ch.charCodeAt(0)};`);
 }
 
-function renderPin(city: City, now: Date, sun: SunPosition): string {
+// ---- Time scrubbing ----
+// Click a city to select it, then scroll (or use the arrow keys) to move time forward or back.
+// Every city, and the day/night shading, then shows that moment instead of now.
+
+const STEP_MINUTES = 15; // 15-minute steps also land on half- and quarter-hour time zones
+const WHEEL_STEP = 100; // wheel distance per step: one mouse-wheel notch; touchpads add up smaller moves
+const MAX_OFFSET_MINUTES = 7 * 24 * 60;
+
+let selectedKey: string | null = null;
+let offsetMinutes = 0;
+let wheelDistance = 0;
+
+const cityKey = (city: City) => `${city.name}|${city.lat}|${city.lon}`;
+
+function select(key: string): void {
+  selectedKey = key;
+  render();
+}
+
+function clearSelection(): void {
+  selectedKey = null;
+  offsetMinutes = 0;
+  wheelDistance = 0;
+  render();
+}
+
+function shiftBy(minutes: number): void {
+  offsetMinutes = Math.max(-MAX_OFFSET_MINUTES, Math.min(MAX_OFFSET_MINUTES, offsetMinutes + minutes));
+  render();
+}
+
+/** "+4 hr", "−2 hr 30 min", "+45 min". */
+function formatOffset(minutes: number): string {
+  const sign = minutes < 0 ? "−" : "+";
+  const hours = Math.floor(Math.abs(minutes) / 60);
+  const mins = Math.abs(minutes) % 60;
+  if (hours === 0) return `${sign}${mins} min`;
+  return mins ? `${sign}${hours} hr ${mins} min` : `${sign}${hours} hr`;
+}
+
+svg.addEventListener("click", (event) => {
+  const pin = (event.target as Element).closest<SVGGElement>("[data-key]");
+  if (!pin) {
+    if (selectedKey) clearSelection();
+    return;
+  }
+  if (pin.dataset.key === selectedKey) clearSelection();
+  else select(pin.dataset.key!);
+});
+
+svg.addEventListener(
+  "wheel",
+  (event) => {
+    if (!selectedKey) return;
+    event.preventDefault();
+    wheelDistance += event.deltaMode === WheelEvent.DOM_DELTA_LINE ? event.deltaY * 33 : event.deltaY;
+    const steps = Math.trunc(wheelDistance / WHEEL_STEP);
+    if (steps === 0) return;
+    wheelDistance -= steps * WHEEL_STEP;
+    shiftBy(-steps * STEP_MINUTES); // scrolling up moves time forward
+  },
+  { passive: false },
+);
+
+// Pins are focusable buttons: Enter or Space selects one.
+svg.addEventListener("keydown", (event) => {
+  const pin = (event.target as Element).closest<SVGGElement>("[data-key]");
+  if (pin && (event.key === "Enter" || event.key === " ")) {
+    event.preventDefault();
+    pin.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  }
+});
+
+const KEY_STEPS: Record<string, number> = { ArrowUp: 1, ArrowRight: 1, ArrowDown: -1, ArrowLeft: -1, PageUp: 4, PageDown: -4 };
+
+document.addEventListener("keydown", (event) => {
+  if (!selectedKey || document.getElementById("clock-view")!.hidden) return;
+  if (event.key === "Escape") {
+    clearSelection();
+  } else if (event.key in KEY_STEPS) {
+    event.preventDefault();
+    shiftBy(KEY_STEPS[event.key] * STEP_MINUTES);
+  }
+});
+
+// ---- Drawing ----
+
+// The ocean, coastlines and frame never change, so they are drawn once; the night shading, pins and
+// offset badge are redrawn every minute and on every scroll step.
+svg.innerHTML = `
+  <defs>
+    <clipPath id="card"><rect width="${WIDTH}" height="${HEIGHT}" rx="${RADIUS}"/></clipPath>
+    <filter id="soft" x="-5%" y="-5%" width="110%" height="110%"><feGaussianBlur stdDeviation="1.4 1.1"/></filter>
+  </defs>
+  <g clip-path="url(#card)">
+    <rect class="ocean" width="${WIDTH}" height="${HEIGHT}"/>
+    <g transform="${MAP_TRANSFORM}">
+      <path class="land" d="${land}" fill-rule="evenodd"/>
+      <path id="night" class="night" filter="url(#soft)"/>
+    </g>
+    <g id="pins" class="pins"></g>
+    <g id="offset-badge" class="badge" display="none">
+      <rect class="badge-bg" rx="15"/>
+      <text class="badge-text" x="${WIDTH / 2}" y="40" text-anchor="middle"></text>
+    </g>
+  </g>
+  <rect class="edge" x="1" y="1" width="${WIDTH - 2}" height="${HEIGHT - 2}" rx="${RADIUS - 1}"/>`;
+
+const nightLayer = svg.querySelector<SVGPathElement>("#night")!;
+const pinLayer = svg.querySelector<SVGGElement>("#pins")!;
+const badge = svg.querySelector<SVGGElement>("#offset-badge")!;
+const badgeBg = badge.querySelector<SVGRectElement>("rect")!;
+const badgeText = badge.querySelector<SVGTextElement>("text")!;
+
+function renderPin(city: City, now: Date, at: Date, sun: SunPosition): string {
   const [x, y] = project(city.lat, city.lon);
-  const { time, period } = timeParts(now, city.timeZone, display.hour24);
+  const key = cityKey(city);
+  const selected = key === selectedKey;
+  const { time, period } = timeParts(at, city.timeZone, display.hour24);
+  const dayChange = offsetMinutes ? localDay(at, city.timeZone) - localDay(now, city.timeZone) : 0;
+
   const dot = isDaylight(city.lat, city.lon, sun)
     ? `<circle class="pin-day" cx="${x}" cy="${y}" r="8"/>`
     : `<circle class="pin-night" cx="${x}" cy="${y}" r="6.5"/>`;
+  const halo = selected ? `<circle class="halo" cx="${x}" cy="${y}" r="15"/>` : "";
 
   // Top-left (or top-right, for left-hand labels) corner of the two-line label block.
   let lx = x + 18;
@@ -157,30 +285,52 @@ function renderPin(city: City, now: Date, sun: SunPosition): string {
   }
 
   const periodSpan = period ? `<tspan class="period" dx="3">${period}</tspan>` : "";
-  return `${dot}
+  const daySpan = dayChange ? `<tspan class="day" dx="4">${dayChange > 0 ? "+" : "−"}${Math.abs(dayChange)}d</tspan>` : "";
+  const spoken = `${city.name}, ${time}${period ? ` ${period}M` : ""}`;
+  return `<g class="pin${selected ? " selected" : ""}" data-key="${escapeXml(key)}" tabindex="0" role="button" aria-pressed="${selected}" aria-label="${escapeXml(spoken)}">
+    <circle class="hit" cx="${x}" cy="${y}" r="22"/>
+    ${halo}${dot}
     <text class="code" x="${lx}" y="${top + 17}" text-anchor="${anchor}">${escapeXml(city.code)}</text>
-    <text class="time" x="${lx}" y="${top + 45}" text-anchor="${anchor}">${time}${periodSpan}</text>`;
+    <text class="time" x="${lx}" y="${top + 45}" text-anchor="${anchor}">${time}${periodSpan}${daySpan}</text>
+  </g>`;
+}
+
+function renderBadge(): void {
+  if (!selectedKey) {
+    badge.setAttribute("display", "none");
+    return;
+  }
+  badgeText.innerHTML = offsetMinutes
+    ? `<tspan class="badge-main">${formatOffset(offsetMinutes)}</tspan><tspan class="badge-hint" dx="12">Esc returns to now</tspan>`
+    : `<tspan class="badge-hint">Scroll to change the time</tspan>`;
+  badge.setAttribute("display", "inline");
+  const box = badgeText.getBBox();
+  badgeBg.setAttribute("x", String(box.x - 16));
+  badgeBg.setAttribute("y", String(box.y - 6));
+  badgeBg.setAttribute("width", String(box.width + 32));
+  badgeBg.setAttribute("height", String(box.height + 12));
 }
 
 function render(): void {
+  // Forget the selection if that city was removed in Settings.
+  if (selectedKey && !settings.cities.some((c) => cityKey(c) === selectedKey)) {
+    selectedKey = null;
+    offsetMinutes = 0;
+  }
   const now = new Date();
-  const sun = sunPosition(now);
-  const label = settings.cities.map((c) => `${c.name} ${timeParts(now, c.timeZone, display.hour24).time}`).join(", ");
-  svg.setAttribute("aria-label", `World clock: ${label}`);
-  svg.innerHTML = `
-    <defs>
-      <clipPath id="card"><rect width="${WIDTH}" height="${HEIGHT}" rx="${RADIUS}"/></clipPath>
-      <filter id="soft" x="-5%" y="-5%" width="110%" height="110%"><feGaussianBlur stdDeviation="1.4 1.1"/></filter>
-    </defs>
-    <g clip-path="url(#card)">
-      <rect class="ocean" width="${WIDTH}" height="${HEIGHT}"/>
-      <g transform="${MAP_TRANSFORM}">
-        <path class="land" d="${land}" fill-rule="evenodd"/>
-        <path class="night" d="${nightPath(sun)}" filter="url(#soft)"/>
-      </g>
-      <g class="pins">${settings.cities.map((c) => renderPin(c, now, sun)).join("")}</g>
-    </g>
-    <rect class="edge" x="1" y="1" width="${WIDTH - 2}" height="${HEIGHT - 2}" rx="${RADIUS - 1}"/>`;
+  const at = new Date(now.getTime() + offsetMinutes * 60000);
+  const sun = sunPosition(at);
+
+  nightLayer.setAttribute("d", nightPath(sun));
+  pinLayer.classList.toggle("shifted", offsetMinutes !== 0);
+  pinLayer.innerHTML = settings.cities.map((c) => renderPin(c, now, at, sun)).join("");
+  renderBadge();
+
+  const label = settings.cities.map((c) => `${c.name} ${timeParts(at, c.timeZone, display.hour24).time}`).join(", ");
+  const when = offsetMinutes ? ` (${formatOffset(offsetMinutes)} from now)` : "";
+  svg.setAttribute("aria-label", `World clock${when}: ${label}`);
+  // Redrawing replaces the pins, so put keyboard focus back on the selected one.
+  if (selectedKey) svg.querySelector<SVGGElement>(".pin.selected")?.focus({ preventScroll: true });
 }
 
 // Redraw whenever the minute changes. Checking often (rather than sleeping a full minute)

@@ -25,6 +25,11 @@ the window, double-click it to maximize, and drag the window edges to resize.
   shows where the sun is up), updated every minute.
 - **City pins** with a short label (for example `NYC`, `BRN`, `DXB`) and the local
   time in a compact `11:24 A` / `5:24 P` style.
+- **See any moment**: click a city to highlight it, then scroll (or use the arrow keys)
+  to move time forward or back in 15-minute steps. Every city and the day/night shading
+  follow along, the pins turn amber, and a badge shows how far you've moved (for example
+  "+4 hr" or "−2 hr 30 min"). Cities whose date changes show "+1d" or "−1d". Click the
+  city again, click empty map or press Esc to return to now.
 - **Daylight-saving aware**: times come from the IANA time zone database, so DST
   changes are handled automatically.
 - **One app, one window**: no title bar until you need it; resize it however you like

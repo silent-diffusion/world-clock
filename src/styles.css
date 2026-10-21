@@ -5,6 +5,9 @@
   --map-text: #ffffff;
   --edge: rgba(255, 255, 255, 0.35);
   --map-text-shadow: rgba(4, 12, 32, 0.55);
+  /* Pins and times while showing a moment other than now. */
+  --map-shifted: #ffe08a;
+  --map-badge: rgba(10, 25, 60, 0.6);
 }
 
 /* "auto" follows the system theme: Ocean in light mode, Midnight in dark mode. */
@@ -16,6 +19,8 @@
     --map-text: #eef3ff;
     --edge: rgba(255, 255, 255, 0.14);
     --map-text-shadow: rgba(0, 0, 0, 0.7);
+    --map-shifted: #ffc857;
+    --map-badge: rgba(0, 0, 0, 0.55);
   }
 }
 
@@ -26,6 +31,8 @@
   --map-text: #eef3ff;
   --edge: rgba(255, 255, 255, 0.14);
   --map-text-shadow: rgba(0, 0, 0, 0.7);
+  --map-shifted: #ffc857;
+  --map-badge: rgba(0, 0, 0, 0.55);
 }
 
 :root[data-look="frost"] {
@@ -35,6 +42,8 @@
   --map-text: #0d1a2d;
   --edge: rgba(13, 26, 45, 0.18);
   --map-text-shadow: rgba(255, 255, 255, 0.9);
+  --map-shifted: #9a4f00;
+  --map-badge: rgba(255, 255, 255, 0.9);
 }
 
 [hidden] {
@@ -179,18 +188,44 @@ body {
 }
 
 #map .pins {
-  fill: var(--map-text);
+  --pin: var(--map-text);
+  fill: var(--pin);
   filter: drop-shadow(0 1px 1.5px var(--map-text-shadow));
 }
 
+#map .pins.shifted {
+  --pin: var(--map-shifted);
+}
+
+#map .pin {
+  cursor: pointer;
+  outline: none;
+}
+
+#map .hit {
+  fill: transparent;
+}
+
+#map .pin:focus-visible .hit {
+  stroke: var(--pin);
+  stroke-width: 2;
+  stroke-dasharray: 4 3;
+}
+
+#map .halo {
+  fill: none;
+  stroke: var(--pin);
+  stroke-width: 3;
+}
+
 #map .pin-day {
-  fill: var(--map-text);
+  fill: var(--pin);
   opacity: 0.92;
 }
 
 #map .pin-night {
   fill: rgba(0, 0, 0, 0.25);
-  stroke: var(--map-text);
+  stroke: var(--pin);
   stroke-width: 3;
 }
 
@@ -209,4 +244,29 @@ body {
 #map .period {
   font-size: 15px;
   font-weight: 700;
+}
+
+#map .day {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+#map .badge-bg {
+  fill: var(--map-badge);
+}
+
+#map .badge-text {
+  fill: var(--map-text);
+  font-size: 15px;
+}
+
+#map .badge-main {
+  fill: var(--map-shifted);
+  font-size: 19px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+#map .badge-hint {
+  opacity: 0.85;
 }
