@@ -1,5 +1,5 @@
 import { getVersion } from "@tauri-apps/api/app";
-import { ask, message } from "@tauri-apps/plugin-dialog";
+import { ask } from "@tauri-apps/plugin-dialog";
 import { openUrl } from "@tauri-apps/plugin-opener";
 
 const REPO = "silent-diffusion/world-clock";
@@ -57,10 +57,10 @@ export async function installOrOfferDownload(): Promise<void> {
 let checking = false;
 
 /**
- * Checks for an update and offers to download it. Scheduled checks stay quiet when there is nothing new;
- * a manual check (from the tray menu) also says when the app is up to date or GitHub can't be reached.
+ * Scheduled check: offers to install an update if there is one, and stays quiet otherwise.
+ * ("Check now" in Settings shows its result inline instead.)
  */
-export async function promptForUpdate(manual = false): Promise<void> {
+async function promptForUpdate(): Promise<void> {
   if (checking) return;
   checking = true;
   try {
@@ -73,12 +73,9 @@ export async function promptForUpdate(manual = false): Promise<void> {
         cancelLabel: "Later",
       });
       if (install) await installOrOfferDownload();
-    } else if (manual) {
-      await message(`You have the latest version (${current}).`, { title: "World Clock", kind: "info" });
     }
   } catch (error) {
     console.warn("Update check failed", error);
-    if (manual) await message("Couldn't reach GitHub to check for updates. Try again later.", { title: "World Clock", kind: "warning" });
   } finally {
     checking = false;
   }

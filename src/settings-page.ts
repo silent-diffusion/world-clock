@@ -1,5 +1,5 @@
 import { defaultLabelSide, makeCode, type City, type LabelSide } from "./cities";
-import { inTauri, loadSettings, onSettingsChanged, saveSettings, type CitySort, type Settings, type WidgetSize } from "./settings";
+import { inTauri, loadSettings, saveSettings, type CitySort, type Settings } from "./settings";
 
 interface CityRecord {
   city: string;
@@ -28,7 +28,6 @@ const version = document.getElementById("version") as HTMLSpanElement;
 const updateStatus = document.getElementById("update-status") as HTMLSpanElement;
 const checkNow = document.getElementById("check-now") as HTMLButtonElement;
 const install = document.getElementById("install") as HTMLButtonElement;
-const widgetSize = document.getElementById("widget-size") as HTMLSelectElement;
 const citySort = document.getElementById("city-sort") as HTMLSelectElement;
 
 let settings: Settings = loadSettings();
@@ -42,9 +41,9 @@ function localTime(timeZone: string): string {
   return new Intl.DateTimeFormat("en-US", { timeZone, hour: "numeric", minute: "2-digit" }).format(new Date());
 }
 
-async function update(change: (s: Settings) => void, rerender = true): Promise<void> {
+function update(change: (s: Settings) => void, rerender = true): void {
   change(settings);
-  await saveSettings(settings);
+  saveSettings(settings);
   if (rerender) renderCities();
 }
 
@@ -265,22 +264,16 @@ async function initUpdates(): Promise<void> {
 
 citySort.addEventListener("change", () => update((s) => (s.citySort = citySort.value as CitySort)));
 
-// ---- Widget size ----
-
-widgetSize.addEventListener("change", () => update((s) => (s.widgetSize = widgetSize.value as WidgetSize), false));
-
 // ---- Start ----
 
 function syncFromSettings(): void {
   settings = loadSettings();
   autoUpdates.checked = settings.autoCheckUpdates;
-  widgetSize.value = settings.widgetSize;
   citySort.value = settings.citySort;
   renderCities();
 }
 
 syncFromSettings();
-onSettingsChanged(syncFromSettings);
 initAutostart();
 initUpdates();
 

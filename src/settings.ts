@@ -1,10 +1,5 @@
 import { DEFAULT_CITIES, type City } from "./cities";
 
-export type WidgetSize = "small" | "medium" | "large";
-
-/** Widget widths in logical pixels; the height keeps the map's 1000×405 proportions. */
-export const WIDGET_WIDTHS: Record<WidgetSize, number> = { small: 520, medium: 720, large: 960 };
-
 /** How the Settings window lists cities: as added, A–Z, or by time zone from west to east. */
 export type CitySort = "added" | "name" | "timezone";
 
@@ -12,25 +7,23 @@ export interface Settings {
   /** Kept in the order the cities were added. */
   cities: City[];
   citySort: CitySort;
-  widgetSize: WidgetSize;
   /** Check GitHub for a newer release on launch and once a day. */
   autoCheckUpdates: boolean;
 }
 
 const STORAGE_KEY = "world-clock.settings";
-const CHANGED_EVENT = "settings-changed";
+const changes = new EventTarget();
 
 export const inTauri = "__TAURI_INTERNALS__" in window;
 
 export function loadSettings(): Settings {
-  const defaults: Settings = { cities: DEFAULT_CITIES, citySort: "added", widgetSize: "medium", autoCheckUpdates: true };
+  const defaults: Settings = { cities: DEFAULT_CITIES, citySort: "added", autoCheckUpdates: true };
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "null") as Partial<Settings> | null;
     if (!saved) return defaults;
     return {
       cities: Array.isArray(saved.cities) ? saved.cities : defaults.cities,
       citySort: saved.citySort === "name" || saved.citySort === "timezone" ? saved.citySort : defaults.citySort,
-      widgetSize: saved.widgetSize && saved.widgetSize in WIDGET_WIDTHS ? saved.widgetSize : defaults.widgetSize,
       autoCheckUpdates: saved.autoCheckUpdates ?? defaults.autoCheckUpdates,
     };
   } catch {
@@ -38,22 +31,12 @@ export function loadSettings(): Settings {
   }
 }
 
-/** Saves settings and tells the other window (widget or settings) to reload them. */
-export async function saveSettings(settings: Settings): Promise<void> {
+/** Saves settings and tells the clock view to redraw. */
+export function saveSettings(settings: Settings): void {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
-  if (inTauri) {
-    const { emit } = await import("@tauri-apps/api/event");
-    await emit(CHANGED_EVENT);
-  }
+  changes.dispatchEvent(new Event("change"));
 }
 
 export function onSettingsChanged(callback: () => void): void {
-  if (inTauri) {
-    import("@tauri-apps/api/event").then(({ listen }) => listen(CHANGED_EVENT, callback));
-  } else {
-    // Browser preview: the settings page in another tab writes to the same localStorage.
-    window.addEventListener("storage", (event) => {
-      if (event.key === STORAGE_KEY) callback();
-    });
-  }
+  changes.addEventListener("change", callback);
 }
