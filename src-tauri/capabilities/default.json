@@ -6,8 +6,10 @@
   "permissions": [
     "core:default",
     "core:window:allow-start-dragging",
-    "updater:default",
-    "process:allow-restart",
-    "dialog:allow-ask"
+    "dialog:allow-ask",
+    {
+      "identifier": "opener:allow-open-url",
+      "allow": [{ "url": "https://github.com/silent-diffusion/world-clock/*" }]
+    }
   ]
 }

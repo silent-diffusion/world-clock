@@ -33,8 +33,7 @@ Run the installer; no administrator rights are needed. Every release is listed o
 - **Edit your cities**: search for a city, set its short label, reorder or remove it.
 - **Light and dark looks** that follow the system theme.
 - **Updates from GitHub**: the app checks this repository's GitHub Releases for a
-  newer version, tells you when one is available, and can download and install it
-  for you. You can also check manually from the settings.
+  newer version and offers to download the new installer.
 
 ### Ideas for later
 
@@ -46,23 +45,20 @@ Run the installer; no administrator rights are needed. Every release is listed o
 
 ## How updates work
 
-Releases are published on this repository's
-[Releases page](../../releases). Each release includes the installer and a small
-update manifest. The app reads that manifest, compares versions, and offers to
-update. Update packages are signed, and the app checks the signature before
-installing, so only builds published from this project can be installed this way.
+Shortly after it starts, and then once a day, the app asks the GitHub API for this
+repository's latest release. If that release is newer than the installed version, it
+shows "Update available" with a **Download** button that opens the newest installer
+in your browser. Run it and it updates the app in place. Nothing is downloaded or
+installed without you clicking.
 
-Updates are never installed silently without a setting that allows it. By default
-the app checks on launch and once a day, and asks before installing.
-
-## Tech stack (proposed)
+## Tech stack
 
 | Part | Choice | Why |
 | --- | --- | --- |
 | App shell | [Tauri 2](https://tauri.app) | Small installer, low memory use, native transparent/frameless windows |
 | UI | TypeScript + HTML/CSS (SVG map) | Easy to style the widget and draw the day/night curve |
 | Time zones | `Intl` / IANA tz data | Accurate DST handling without a server |
-| Updates | Tauri updater plugin + GitHub Releases | Signed updates straight from this repo |
+| Updates | GitHub Releases API | Finds new versions with no keys or extra servers |
 | Builds | GitHub Actions | Builds and publishes a release when a version tag is pushed |
 
 The first target is **Windows 10/11**. Tauri also supports macOS and Linux, so those
@@ -98,13 +94,10 @@ Project layout:
 
 1. Bump the version in `package.json`, `src-tauri/Cargo.toml` and `src-tauri/tauri.conf.json`.
 2. Commit, then tag and push: `git tag v0.2.0 && git push origin main v0.2.0`.
-3. The [Release workflow](.github/workflows/release.yml) builds the installer on GitHub,
-   signs the update package and publishes the release with `latest.json`. Installed
-   copies pick it up on their next update check.
+3. The [Release workflow](.github/workflows/release.yml) builds the installer on GitHub
+   and publishes the release. Installed copies offer it on their next update check.
 
-The workflow needs the repository secret `TAURI_SIGNING_PRIVATE_KEY` (the contents of the
-private key made with `npx tauri signer generate`). Keep that key safe: if it is lost,
-installed copies can no longer accept updates.
+No secrets or signing keys are needed.
 
 ## Contributing
 

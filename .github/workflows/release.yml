@@ -1,5 +1,5 @@
 # Builds the Windows installer and publishes it as a GitHub Release when a version tag (e.g. v0.1.0) is pushed.
-# The release also gets latest.json, which installed copies of the app read to find updates.
+# Installed copies of the app find new releases through the GitHub API and link to the installer.
 name: Release
 
 on:
@@ -32,16 +32,13 @@ jobs:
         uses: tauri-apps/tauri-action@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Signs the update packages; the matching public key is in src-tauri/tauri.conf.json.
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           tagName: ${{ github.ref_name }}
           releaseName: World Clock ${{ github.ref_name }}
           generateReleaseNotes: true
           releaseDraft: false
           prerelease: false
-          updaterJsonPreferNsis: true
+          uploadUpdaterJson: false
 
       # A copy with a fixed name, so .../releases/latest/download/World-Clock-Setup.exe always gets the newest installer.
       - name: Upload installer under a fixed name
