@@ -68,6 +68,26 @@ h2 {
   color: var(--muted);
 }
 
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.sort {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.sort select {
+  height: 32px;
+}
+
 .hint {
   margin: 0;
   font-size: 13px;

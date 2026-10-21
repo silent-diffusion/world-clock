@@ -34,7 +34,8 @@ After installing, World Clock runs in the background with an icon in the system 
   Small, Medium or Large in Settings; drag it to move it and it remembers where you put it.
 - **Always running**: lives in the system tray and starts when you sign in to Windows
   (you can turn that off in Settings).
-- **Edit your cities**: search about 7,000 cities, add or remove them, change the short
+- **Edit your cities**: search about 7,000 cities, add or remove them, sort the list by
+  date added, name or time zone, change the short
   label and which side of the pin it sits on.
 - **Light and dark looks** that follow the system theme.
 - **Updates from GitHub**: the app checks this repository's GitHub Releases for a

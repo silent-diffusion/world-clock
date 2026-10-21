@@ -12,7 +12,17 @@
       <h1>Settings</h1>
 
       <section aria-labelledby="cities-heading">
-        <h2 id="cities-heading">Cities</h2>
+        <div class="section-head">
+          <h2 id="cities-heading">Cities</h2>
+          <label class="sort">
+            <span>Sort by</span>
+            <select id="city-sort">
+              <option value="added">Date added</option>
+              <option value="name">Name (A–Z)</option>
+              <option value="timezone">Time zone (west to east)</option>
+            </select>
+          </label>
+        </div>
         <p class="hint">Shown on the widget. Change the short label or where it sits next to the pin.</p>
         <ul id="city-list" class="card"></ul>
 
