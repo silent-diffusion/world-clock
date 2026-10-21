@@ -44,8 +44,61 @@ function showView(view: string): void {
 }
 tabs.forEach((tab) => tab.addEventListener("click", () => showView(tab.dataset.view!)));
 
+// ---- Auto-hiding top bar ----
+// The window has no title bar. Ours slides down when the mouse reaches the top edge (or a keyboard user
+// tabs into it) and slides away again shortly after the mouse moves down or leaves the window.
+
+const bar = document.getElementById("app-bar")!;
+const REVEAL_ZONE = 24; // px from the top of the window
+let hideTimer: number | undefined;
+
+function showBar(): void {
+  clearTimeout(hideTimer);
+  bar.classList.add("shown");
+}
+
+function scheduleHide(): void {
+  clearTimeout(hideTimer);
+  hideTimer = window.setTimeout(() => {
+    if (!bar.matches(":hover") && !bar.querySelector(":focus-visible")) bar.classList.remove("shown");
+  }, 400);
+}
+
+document.addEventListener("mousemove", (event) => {
+  if (event.clientY <= REVEAL_ZONE) showBar();
+  else if (bar.classList.contains("shown") && event.clientY > bar.offsetHeight) scheduleHide();
+});
+document.documentElement.addEventListener("mouseleave", scheduleHide);
+bar.addEventListener("focusin", showBar);
+bar.addEventListener("focusout", scheduleHide);
+
+async function setUpWindowControls(): Promise<void> {
+  const { getCurrentWindow } = await import("@tauri-apps/api/window");
+  const appWindow = getCurrentWindow();
+  const maximize = document.getElementById("maximize")!;
+
+  document.querySelector<HTMLElement>(".window-controls")!.hidden = false;
+  document.getElementById("minimize")!.addEventListener("click", () => appWindow.minimize());
+  maximize.addEventListener("click", () => appWindow.toggleMaximize());
+  document.getElementById("close")!.addEventListener("click", () => appWindow.close());
+
+  // Swap the maximize icon for a "restore" icon while the window is maximized.
+  const square = maximize.innerHTML;
+  const restore = `<svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M2.5 2.5V0.5h7v7h-2M0.5 2.5h7v7h-7z" fill="none" stroke="currentColor" stroke-width="1"/></svg>`;
+  const syncMaximize = async () => {
+    const maximized = await appWindow.isMaximized();
+    maximize.innerHTML = maximized ? restore : square;
+    maximize.setAttribute("aria-label", maximized ? "Restore" : "Maximize");
+    maximize.title = maximized ? "Restore" : "Maximize";
+  };
+  appWindow.onResized(syncMaximize);
+  syncMaximize();
+}
+
 // Loaded lazily so the browser preview (npm run dev) doesn't touch the Tauri plugins.
 async function setUpDesktop(): Promise<void> {
+  setUpWindowControls();
+
   const { scheduleUpdateChecks } = await import("./updates");
   scheduleUpdateChecks(() => settings.autoCheckUpdates);
 
