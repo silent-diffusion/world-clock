@@ -1,4 +1,5 @@
 use tauri::Manager;
+use tauri_plugin_window_state::StateFlags;
 
 mod update;
 
@@ -18,8 +19,14 @@ pub fn run() {
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,
             Some(vec!["--autostart"]),
         ))
-        // Remembers the window's size, position and maximized state between launches.
-        .plugin(tauri_plugin_window_state::Builder::new().build())
+        // Remembers the window's size, position and maximized state between launches. Only those: the
+        // default also restores the title bar setting, which brought back the Windows title bar for
+        // anyone who had used a version that still had it.
+        .plugin(
+            tauri_plugin_window_state::Builder::new()
+                .with_state_flags(StateFlags::POSITION | StateFlags::SIZE | StateFlags::MAXIMIZED)
+                .build(),
+        )
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![update::install_update])
