@@ -40,7 +40,8 @@ const PICTURE_STYLES = `
   .wallpaper .year-month h3 { font-size: clamp(10px, min(6cqh, 4.5cqw), 28px); }
   .wallpaper .year-grid { flex: 1; min-height: 0; grid-template-rows: auto; grid-auto-rows: minmax(0, 1fr); }
   .wallpaper .year-wd { height: auto; font-size: clamp(9px, min(5cqh, 4cqw), 22px); }
-  .wallpaper .year-day { height: auto; font-size: clamp(10px, min(7cqh, 5.5cqw), 34px); }
+  .wallpaper .year-day { height: auto; padding-bottom: clamp(6px, 3.5cqh, 16px); font-size: clamp(10px, min(7cqh, 5.5cqw), 34px); }
+  .wallpaper .year-marks { bottom: clamp(2px, 1.2cqh, 6px); }
   .wallpaper .year-marks .year-mark { width: clamp(4px, 1.4cqw, 9px); height: clamp(4px, 1.4cqw, 9px); }
 `;
 

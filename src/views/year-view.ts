@@ -121,7 +121,10 @@ function month(year: number, m: number, facts: ReturnType<typeof yearFacts>, tod
   const first = (Date.UTC(year, m, 1) - Date.UTC(year, 0, 1)) / DAY;
   const days = new Date(Date.UTC(year, m + 1, 0)).getUTCDate();
   const lead = (new Date(Date.UTC(year, m, 1)).getUTCDay() - weekStart + 7) % 7;
-  const letters = Array.from({ length: 7 }, (_, i) => `<span class="year-wd">${LETTERS[(weekStart + i) % 7]}</span>`).join("");
+  const letters = Array.from({ length: 7 }, (_, i) => {
+    const weekday = (weekStart + i) % 7;
+    return `<span class="year-wd${weekday === 0 || weekday === 6 ? " weekend" : ""}">${LETTERS[weekday]}</span>`;
+  }).join("");
   const cells: string[] = Array.from({ length: lead }, () => `<span></span>`);
   for (let d = 0; d < days; d++) {
     const day = first + d;
