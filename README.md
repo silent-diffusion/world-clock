@@ -38,6 +38,9 @@ move between views. Choose which views you want, and their order, in Settings.
   example when the US and Europe change clocks on different weekends). A strip shows each
   city's hours from you (or from the selected city) through the year. Click a day to see it
   in every view; press Esc to come back to now.
+- **Clock**: your own time and date in large type, sized to whatever space it has. It's off
+  in the swipe list by default and made for the desktop background, where you can place it
+  on its own or over another view.
 
 ## Features
 
@@ -129,7 +132,7 @@ Project layout:
 | --- | --- |
 | `index.html` | The app window: views, mini strip and Settings |
 | `src/main.ts` | The shell: tabs, swiping, keyboard, scrubbing time, mini mode, the top bar |
-| `src/views/` | One file per view (map, day, sky, dial, meet, year, mini) plus shared city data |
+| `src/views/` | One file per view (map, day, sky, dial, meet, year, clock, mini) plus shared city data |
 | `src/year.ts` | Clock changes, unusual gaps and public holidays through a year |
 | `src/state.ts` | The selected city and time shift, shared by every view |
 | `src/time.ts` | Time-zone helpers, including finding the next clock change |

@@ -3,7 +3,7 @@ import { cityKey, DEFAULT_CITIES, type City } from "./cities";
 /** How the Settings city list is ordered: as added, A–Z, or by time zone from west to east. */
 export type CitySort = "added" | "name" | "timezone";
 
-export type ViewId = "map" | "day" | "sky" | "dial" | "meet" | "year";
+export type ViewId = "map" | "day" | "sky" | "dial" | "meet" | "year" | "clock";
 
 export const VIEW_INFO: Record<ViewId, { name: string; description: string }> = {
   map: { name: "Map", description: "Every city on a live day-and-night map, with its time beside it" },
@@ -12,6 +12,7 @@ export const VIEW_INFO: Record<ViewId, { name: string; description: string }> = 
   dial: { name: "Dial", description: "All cities around one 24-hour clock face" },
   meet: { name: "Meet", description: "Find the hours when everyone is at work" },
   year: { name: "Year", description: "The year at a glance: clock changes, holidays and unusual gaps in your cities" },
+  clock: { name: "Clock", description: "Your own time and date, large, for the desktop background" },
 };
 
 export interface MapExtras {
@@ -80,6 +81,7 @@ export function defaultSettings(): Settings {
       { id: "dial", on: false },
       { id: "meet", on: true },
       { id: "year", on: true },
+      { id: "clock", on: false },
     ],
     extras: { dateBoundary: false, dimAsleep: true, relative: false, details: true, clockAlerts: true },
     workStart: 9 * 60,

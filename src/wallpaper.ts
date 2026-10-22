@@ -18,7 +18,7 @@ const PICTURE_STYLES = `
   .wallpaper .year-head, .wallpaper .year-bottom { display: none !important; }
   .wallpaper .page { flex: 1; min-height: 0; height: auto; }
   .wallpaper .map-page, .wallpaper .dial-page { padding: 12px; }
-  .wallpaper .day-view, .wallpaper .sky-view, .wallpaper .meet-view, .wallpaper .year-view { padding: 16px; overflow: hidden; }
+  .wallpaper .day-view, .wallpaper .sky-view, .wallpaper .meet-view, .wallpaper .year-view, .wallpaper .clock-view { padding: 16px; overflow: hidden; }
 
   /* Every view stretches to fill its spot, across and down. */
   .wallpaper .map-box { width: 100%; height: 100%; aspect-ratio: auto; }

@@ -5,6 +5,7 @@ import { refreshSettingsPage, settingsGoBack } from "./settings-page";
 import { onStateChange, setState, state } from "./state";
 import { clockText, formatShift, longDate, systemTimeZone } from "./time";
 import { snapshot, type Snapshot } from "./views/common";
+import { renderClock } from "./views/clock-view";
 import { renderDay } from "./views/day-view";
 import { renderDial } from "./views/dial-view";
 import { renderMap } from "./views/map-view";
@@ -86,7 +87,9 @@ function render(): void {
   $("hint").textContent =
     state.view === "year"
       ? "Click a day to see it in every view"
-      : selected
+      : state.view === "clock"
+        ? "Your own time · add it to the desktop in Settings → Desktop background"
+        : selected
         ? "Scroll or ↑ ↓ to move time · ← → for other views"
         : "Click a city, then scroll to see another time";
   const asleep = snap.cities.filter((c) => c.asleep).length;
@@ -104,7 +107,8 @@ function drawView(view: ViewId, snap: Snapshot): void {
   else if (view === "sky") renderSky(snap);
   else if (view === "dial") renderDial(snap);
   else if (view === "meet") renderMeet(snap, settings);
-  else renderYear(snap, settings);
+  else if (view === "year") renderYear(snap, settings);
+  else renderClock(snap);
 }
 
 // ---- Desktop background ----
