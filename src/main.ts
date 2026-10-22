@@ -1,6 +1,7 @@
 import { cityKey } from "./cities";
 import { inTauri, loadSettings, onSettingsChanged, VIEW_INFO, type Settings, type ViewId } from "./settings";
-import { refreshSettingsPage } from "./settings-page";
+import { setPreviewRenderer } from "./background-editor";
+import { refreshSettingsPage, settingsGoBack } from "./settings-page";
 import { onStateChange, setState, state } from "./state";
 import { clockText, formatShift, longDate, systemTimeZone } from "./time";
 import { snapshot, type Snapshot } from "./views/common";
@@ -10,7 +11,7 @@ import { renderMap } from "./views/map-view";
 import { renderMeet } from "./views/meet-view";
 import { isMini, renderMini, restoreIfTooSmall, setMini } from "./views/mini-view";
 import { renderSky } from "./views/sky-view";
-import { browserScreen, pictureOfView, type ScreenSize } from "./wallpaper";
+import { browserScreen, pictureOfLayout, type ScreenSize } from "./wallpaper";
 
 const $ = (id: string) => document.getElementById(id)!;
 const clock = $("clock");
@@ -104,7 +105,7 @@ const ORIGINAL_WALLPAPER_KEY = "world-clock.original-wallpaper";
 let wallpaperWasOn = settings.wallpaper.on;
 let wallpaperBusy = false;
 
-/** Draws the chosen view for right now (no selection or scrubbing) and hands it to Windows. */
+/** Draws the background layout for right now (no selection or scrubbing) and hands it to Windows. */
 async function updateWallpaper(): Promise<void> {
   if (!inTauri || !settings.wallpaper.on || wallpaperBusy) return;
   wallpaperBusy = true;
@@ -112,8 +113,9 @@ async function updateWallpaper(): Promise<void> {
     const screen = await monitorSize();
     const live = { selectedKey: state.selectedKey, offsetMinutes: state.offsetMinutes, detailsOpen: state.detailsOpen };
     Object.assign(state, { selectedKey: null, offsetMinutes: 0, detailsOpen: false });
-    drawView(settings.wallpaper.view, snapshot(settings));
-    const picture = pictureOfView(settings.wallpaper.view, screen); // copies the page before its first await
+    const snap = snapshot(settings);
+    for (const view of new Set(settings.wallpaper.layout.map((tile) => tile.view))) drawView(view, snap);
+    const picture = pictureOfLayout(settings.wallpaper.layout, screen); // copies the pages before its first await
     Object.assign(state, live);
     render();
     const { invoke } = await import("@tauri-apps/api/core");
@@ -136,6 +138,20 @@ async function monitorSize(): Promise<ScreenSize> {
     scale: monitor.scaleFactor,
   };
 }
+
+/** The background picture for the Preview button in Settings, drawn the same way as the real one. */
+setPreviewRenderer(async () => {
+  const screen = inTauri ? await monitorSize() : browserScreen();
+  const live = { selectedKey: state.selectedKey, offsetMinutes: state.offsetMinutes, detailsOpen: state.detailsOpen };
+  Object.assign(state, { selectedKey: null, offsetMinutes: 0, detailsOpen: false });
+  const snap = snapshot(settings);
+  for (const view of new Set(settings.wallpaper.layout.map((tile) => tile.view))) drawView(view, snap);
+  // A small picture is plenty for the preview.
+  const picture = pictureOfLayout(settings.wallpaper.layout, { ...screen, scale: Math.min(screen.scale, 640 / screen.width) });
+  Object.assign(state, live);
+  render();
+  return picture;
+});
 
 /** Reacts to the setting being turned on or off: keep running when closed, and save or restore the old background. */
 async function syncWallpaperMode(): Promise<void> {
@@ -281,7 +297,7 @@ document.addEventListener("keydown", (event) => {
   const target = event.target instanceof Element ? event.target : document.body;
   const typing = Boolean(target.closest("input, select, textarea"));
   if (settingsOpen) {
-    if (event.key === "Escape" && !typing) closeSettings();
+    if (event.key === "Escape" && !typing && !settingsGoBack()) closeSettings();
     return;
   }
   if (isMini()) return;
@@ -331,7 +347,10 @@ function closeSettings(): void {
 }
 
 $("settings-button").addEventListener("click", () => (settingsOpen ? closeSettings() : openSettings()));
-$("settings-back").addEventListener("click", closeSettings);
+// Back goes up one level in the Settings menu, and closes Settings from the top.
+$("settings-back").addEventListener("click", () => {
+  if (!settingsGoBack()) closeSettings();
+});
 
 async function enterMini(): Promise<void> {
   if (settingsOpen) closeSettings();

@@ -48,12 +48,14 @@ move between views. Choose which views you want, and their order, in Settings.
   - **Dim cities where people are asleep** (11 PM to 7 AM local time).
   - **Times relative to the selected city**: labels show "+6h" instead of the time.
   - **Where it's already tomorrow**: shades the part of the world past midnight.
-- **Desktop background**: turn on "Set as background" in Settings and pick a view. Once a
-  minute World Clock draws that view as a picture at your main display's resolution, without
-  any notifications, and sets it
+- **Desktop background**: in Settings → Desktop background, turn on "Set as background" and
+  arrange one or more views (for example the map and the meeting finder) on a picture of your
+  main display. Drag views to move them, drag their corner to resize them, and see your
+  desktop icons and the taskbar so you can arrange around them. Once a minute World Clock
+  draws that layout at your main display's resolution, without any notifications, and sets it
   as your Windows background, so nothing runs between updates. While it's on, closing the
-  window keeps World Clock running in the background (open it again from the Start menu),
-  and at sign-in it starts hidden. Turning it off puts your previous background back.
+  window keeps World Clock running in the background (open it again from the Start menu), and
+  at sign-in it starts hidden. Turning it off puts your previous background back.
 - **Mini mode**: shrink to a slim strip of times, the same height as the Windows 11
   taskbar. It opens sitting on the taskbar, stays on top of it (and every other window),
   remembers where you drag it, and shows every city or only the ones you've pinned.
@@ -61,6 +63,9 @@ move between views. Choose which views you want, and their order, in Settings.
   are handled automatically.
 - **Edit your cities**: search about 7,000 cities, add or remove them, sort them, change
   the short label and which side of the pin it sits on, pin them for mini mode, and add a note.
+- **Settings menu**: Settings opens as a short menu (Cities, Views, Map extras, Working
+  hours, Desktop background, Mini mode, Updates), each showing its current value; every
+  city has its own page. Back or Esc goes up one level.
 - **Starts when you sign in** to Windows (you can turn that off in Settings), and opening it
   again brings the existing window to the front.
 - **Updates from GitHub**: the app checks this repository's releases and installs a newer
@@ -126,9 +131,11 @@ Project layout:
 | `src/settings.ts` | Saved settings |
 | `src/settings-page.ts` | The Settings page |
 | `src/updates.ts` | Checks GitHub for a newer release |
-| `src/wallpaper.ts` | Draws a view as a full-screen picture for the desktop background |
+| `src/wallpaper.ts` | Draws the background layout as a full-screen picture |
+| `src/background-editor.ts` | The drag-and-resize background designer in Settings |
 | `src-tauri/src/update.rs` | Downloads, verifies and runs the update installer |
 | `src-tauri/src/wallpaper.rs` | Sets the Windows background, ticks every minute, keeps running when closed |
+| `src-tauri/src/desktop_icons.rs` | Reads where the desktop icons are, through the shell's own interfaces |
 | `src-tauri/` | The Rust/Tauri desktop shell and window settings |
 
 ## Releasing (maintainers)
