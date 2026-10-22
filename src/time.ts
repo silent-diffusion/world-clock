@@ -111,7 +111,11 @@ export function duration(minutes: number): string {
 
 /** "+4 hr", "−2 hr 30 min", "+45 min" */
 export function formatShift(minutes: number): string {
-  return (minutes < 0 ? "−" : "+") + duration(minutes);
+  const sign = minutes < 0 ? "−" : "+";
+  // Days picked in the Year view: "+3 days" rather than "+72 hr" (a clock change can make it 71 or 73).
+  const days = Math.abs(minutes) / 1440;
+  if (days >= 2 && Math.abs(days - Math.round(days)) <= 1 / 24) return `${sign}${Math.round(days)} days`;
+  return sign + duration(minutes);
 }
 
 /** "+6h", "−3h", "+5h 30m", "Same time" */
