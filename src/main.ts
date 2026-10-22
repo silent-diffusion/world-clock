@@ -125,10 +125,10 @@ async function updateWallpaper(): Promise<void> {
   }
 }
 
-/** The size of the monitor the window is on (the desktop the background will cover). */
+/** The size of the main (primary) display, which the background is fitted to. */
 async function monitorSize(): Promise<ScreenSize> {
-  const { currentMonitor } = await import("@tauri-apps/api/window");
-  const monitor = await currentMonitor().catch(() => null);
+  const { currentMonitor, primaryMonitor } = await import("@tauri-apps/api/window");
+  const monitor = (await primaryMonitor().catch(() => null)) ?? (await currentMonitor().catch(() => null));
   if (!monitor) return browserScreen();
   return {
     width: Math.round(monitor.size.width / monitor.scaleFactor),

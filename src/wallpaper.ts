@@ -5,10 +5,10 @@ import type { ViewId } from "./settings";
 
 const LAYOUT_WIDTH = 1400;
 
-/** Bits that only make sense in the live window. */
+/** Bits that only make sense in the live window, and notifications (the clock-change banner and tags). */
 const HIDE_IN_PICTURE = `
   .wallpaper .details, .wallpaper .dismiss, .wallpaper .add-person, .wallpaper .copy-times,
-  .wallpaper .person button { display: none !important; }
+  .wallpaper .person button, .wallpaper .alert, .wallpaper .chip-tag.change { display: none !important; }
   .wallpaper .page { flex: 1; min-height: 0; height: auto; }
 `;
 
