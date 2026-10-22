@@ -2226,3 +2226,55 @@ select {
 .year-line.shown {
   background: var(--amber);
 }
+
+/* ---------- Clock ---------- */
+
+.clock-view {
+  height: 100%;
+  padding: 56px 24px 16px;
+  container-type: size;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.clock-face {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+/* Sized to the space it has, so it suits a corner of the desktop or the whole screen. */
+.clock-time {
+  font-size: min(26cqw, 52cqh);
+  font-weight: 200;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  color: var(--pin);
+}
+
+.clock-ap {
+  margin-left: 0.08em;
+  font-size: 0.24em;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: var(--soft);
+}
+
+.clock-date {
+  margin-top: 0.4em;
+  font-size: min(4.6cqw, 9cqh);
+  font-weight: 400;
+  color: var(--soft);
+}
+
+.clock-zone {
+  margin-top: 0.5em;
+  font-size: min(2.4cqw, 5cqh);
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
