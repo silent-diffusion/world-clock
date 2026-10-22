@@ -4,6 +4,7 @@ import { setState, state } from "../state";
 import { nightPath, sunTimes } from "../sun";
 import { clockText, duration, formatGap, nextClockChange, shortDate, startOfLocalDay, systemTimeZone, type ClockChange } from "../time";
 import { dayMark, escapeHtml, mapX, mapY, type CityInfo, type Snapshot } from "./common";
+import { untangleLabels } from "./map-labels";
 
 // The map is drawn in a 1000×405 space (latitudes 84°N to 62°S) and stretched to the box, which keeps that ratio.
 const WIDTH = 1000;
@@ -69,6 +70,9 @@ function changeSentence(change: ClockChange): string {
   return `${direction} ${duration(Math.abs(change.delta)).replace("1 hr", "an hour")}`;
 }
 
+// Labels are placed in pixels, so place them again whenever the map changes size.
+new ResizeObserver(() => untangleLabels(pins)).observe(pins);
+
 // ---- Interaction ----
 
 pins.addEventListener("click", (event) => {
@@ -130,7 +134,7 @@ function renderPin(info: CityInfo, snap: Snapshot, settings: Settings, reference
   if (info.selected) classes.push("selected");
   if (settings.extras.dimAsleep && info.asleep && !info.selected) classes.push("asleep");
   const spoken = `${city.name}, ${info.clock}${info.isDay ? "" : ", night"}`;
-  return `<button type="button" class="${classes.join(" ")}" style="left:${x}%;top:${y}%" data-key="${escapeHtml(info.key)}" aria-pressed="${info.selected}" aria-label="${escapeHtml(spoken)}">
+  return `<button type="button" class="${classes.join(" ")}" style="left:${x}%;top:${y}%" data-side="${city.label}" data-key="${escapeHtml(info.key)}" aria-pressed="${info.selected}" aria-label="${escapeHtml(spoken)}">
     <span class="dot ${info.isDay ? "day" : "night"}"></span>
     <span class="chip"><span class="chip-code">${escapeHtml(city.code)}${tag}</span><span class="chip-time">${main}</span></span>
   </button>`;
@@ -261,6 +265,7 @@ export function renderMap(snap: Snapshot, settings: Settings): void {
   // Keep focus on a pin across redraws so keyboard scrubbing keeps working.
   const focusedKey = (document.activeElement as HTMLElement | null)?.closest<HTMLElement>(".pin")?.dataset.key;
   pins.innerHTML = snap.cities.map((info) => renderPin(info, snap, settings, selected)).join("");
+  untangleLabels(pins);
   if (focusedKey) pins.querySelector<HTMLElement>(`.pin[data-key="${CSS.escape(focusedKey)}"]`)?.focus({ preventScroll: true });
 
   const showDetails = Boolean(selected && state.detailsOpen && settings.extras.details);

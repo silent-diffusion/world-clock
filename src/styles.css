@@ -374,6 +374,17 @@ body.shifted .badge-main {
   box-shadow: 0 0 0 6px rgba(255, 200, 87, 0.35);
 }
 
+/* Joins a label that had to move away from its dot (see map-labels.ts) back to it. */
+.leader {
+  position: absolute;
+  left: 0;
+  top: -0.5px;
+  height: 1px;
+  transform-origin: 0 50%;
+  background: rgba(244, 247, 255, 0.35);
+  pointer-events: none;
+}
+
 .chip {
   position: absolute;
   display: flex;

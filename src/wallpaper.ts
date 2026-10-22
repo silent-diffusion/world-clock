@@ -1,4 +1,5 @@
 import type { BackgroundTile } from "./settings";
+import { untangleLabels } from "./views/map-labels";
 
 // Turns a layout of views into a full-screen picture: each view's page is copied into its spot, together
 // with the app's styles, inside an SVG <foreignObject>, which the browser can paint onto a canvas.
@@ -12,6 +13,8 @@ const MIN_TILE_WIDTH = 900;
 const PICTURE_STYLES = `
   .wallpaper .details, .wallpaper .dismiss, .wallpaper .add-person, .wallpaper .copy-times,
   .wallpaper .person button, .wallpaper .alert, .wallpaper .chip-tag.change { display: none !important; }
+  /* Just the clocks: no keys, headings, city pickers or other controls. */
+  .wallpaper .legend, .wallpaper .meet-people, .wallpaper .meet-result .eyebrow, .wallpaper .grip { display: none !important; }
   .wallpaper .page { flex: 1; min-height: 0; height: auto; }
   .wallpaper .map-page, .wallpaper .dial-page { padding-top: 12px; }
   .wallpaper .day-view, .wallpaper .sky-view, .wallpaper .meet-view { padding-top: 16px; overflow: hidden; }
@@ -90,7 +93,15 @@ export async function pictureOfLayout(layout: BackgroundTile[], screen: ScreenSi
     wrapper.append(box);
   }
 
+  // Lay the copy out off screen so the map labels can be placed for its size, as in the live map.
+  const stage = document.createElement("div");
+  stage.setAttribute("style", "position:fixed;left:-100000px;top:0;pointer-events:none");
+  stage.setAttribute("aria-hidden", "true");
+  stage.append(wrapper);
+  document.body.append(stage);
+  wrapper.querySelectorAll<HTMLElement>(".pins").forEach(untangleLabels);
   const markup = new XMLSerializer().serializeToString(wrapper);
+  stage.remove();
   const svg =
     `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">` +
     `<foreignObject x="0" y="0" width="${width}" height="${height}">${markup}</foreignObject></svg>`;
