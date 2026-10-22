@@ -150,6 +150,8 @@ function month(year: number, m: number, facts: ReturnType<typeof yearFacts>, tod
         `${d + 1}${marks ? `<span class="year-marks" aria-hidden="true">${marks}</span>` : ""}</button>`,
     );
   }
+  // Always six weeks, so every month is the same height.
+  while (cells.length < 42) cells.push(`<span></span>`);
   const isCurrent = year === today.year && m === new Date(Date.UTC(year, 0, 1 + today.day)).getUTCMonth();
   return `<section class="year-month${isCurrent ? " current" : ""}" aria-label="${MONTHS[m]} ${year}">
     <h3>${MONTHS[m].slice(0, 3).toUpperCase()}</h3>
@@ -279,20 +281,20 @@ export function renderYear(snap: Snapshot, settings: Settings): void {
         ${toggle("gaps", "Gaps that differ", "year-swatch-odd")}
       </div>
     </div>
-    <div class="year-body">
-      <div class="year-calendar">
-        <div class="year-months">${MONTHS.map((_, m) => month(year, m, facts, today, shown)).join("")}</div>
-        <div class="legend">
-          <span><span class="swatch year-swatch-today"></span>Today</span>
-          <span><span class="swatch year-swatch-shown"></span>Shown in every view</span>
-          <span><span class="year-mark change"></span>Clocks change</span>
-          <span><span class="year-mark holiday"></span>Holiday in one of your cities</span>
-          <span><span class="swatch year-swatch-odd"></span>Gaps between your cities differ from usual</span>
-        </div>
+    <div class="year-calendar">
+      <div class="year-months">${MONTHS.map((_, m) => month(year, m, facts, today, shown)).join("")}</div>
+      <div class="legend">
+        <span><span class="swatch year-swatch-today"></span>Today</span>
+        <span><span class="swatch year-swatch-shown"></span>Shown in every view</span>
+        <span><span class="year-mark change"></span>Clocks change</span>
+        <span><span class="year-mark holiday"></span>Holiday in one of your cities</span>
+        <span><span class="swatch year-swatch-odd"></span>Gaps between your cities differ from usual</span>
       </div>
-      ${panel(shown, today, reference, referenceName, referenceKey)}
     </div>
-    ${strip(year, facts, referenceName, today, shown)}`;
+    <div class="year-bottom">
+      ${strip(year, facts, referenceName, today, shown)}
+      ${panel(shown, today, reference, referenceName, referenceKey)}
+    </div>`;
 }
 
 /** The footer summary while the Year view is showing: what's coming up in the next six weeks. */
