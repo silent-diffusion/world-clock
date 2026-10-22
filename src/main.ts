@@ -11,6 +11,7 @@ import { renderMap } from "./views/map-view";
 import { renderMeet } from "./views/meet-view";
 import { isMini, renderMini, restoreIfTooSmall, setMini } from "./views/mini-view";
 import { renderSky } from "./views/sky-view";
+import { renderYear, yearSummary } from "./views/year-view";
 import { browserScreen, pictureOfLayout, type ScreenSize } from "./wallpaper";
 
 const $ = (id: string) => document.getElementById(id)!;
@@ -82,12 +83,17 @@ function render(): void {
   badge.hidden = !main || settingsOpen;
   badge.innerHTML = `<span class="badge-main">${main}</span><span class="badge-hint">${hint}</span>`;
 
-  $("hint").textContent = selected
-    ? "Scroll or ↑ ↓ to move time · ← → for other views"
-    : "Click a city, then scroll to see another time";
+  $("hint").textContent =
+    state.view === "year"
+      ? "Click a day to see it in every view"
+      : selected
+        ? "Scroll or ↑ ↓ to move time · ← → for other views"
+        : "Click a city, then scroll to see another time";
   const asleep = snap.cities.filter((c) => c.asleep).length;
   const daylight = snap.cities.filter((c) => c.isDay).length;
-  $("summary").textContent = settings.extras.dimAsleep
+  $("summary").textContent = state.view === "year"
+    ? yearSummary(snap, settings)
+    : settings.extras.dimAsleep
     ? `${snap.cities.length - asleep} awake · ${asleep} asleep`
     : `${daylight} of ${snap.cities.length} cities in daylight`;
 }
@@ -97,7 +103,8 @@ function drawView(view: ViewId, snap: Snapshot): void {
   else if (view === "day") renderDay(snap, settings);
   else if (view === "sky") renderSky(snap);
   else if (view === "dial") renderDial(snap);
-  else renderMeet(snap, settings);
+  else if (view === "meet") renderMeet(snap, settings);
+  else renderYear(snap, settings);
 }
 
 // ---- Desktop background ----
@@ -183,7 +190,10 @@ function clearSelection(): void {
 }
 
 function shiftBy(minutes: number): void {
-  setState({ offsetMinutes: Math.max(-MAX_OFFSET_MINUTES, Math.min(MAX_OFFSET_MINUTES, state.offsetMinutes + minutes)) });
+  const next = state.offsetMinutes + minutes;
+  // Scrolling stays within a week of now, but a day picked further out in the Year view can still be scrolled around.
+  const limit = Math.max(MAX_OFFSET_MINUTES, Math.abs(state.offsetMinutes));
+  setState({ offsetMinutes: Math.max(-limit, Math.min(limit, next)) });
 }
 
 function go(delta: number): void {
@@ -320,6 +330,7 @@ document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") {
     if (state.detailsOpen) setState({ detailsOpen: false });
     else if (state.selectedKey) clearSelection();
+    else if (state.offsetMinutes) setState({ offsetMinutes: 0 }); // a day picked in the Year view
     return;
   }
   if (event.key === "ArrowLeft" || event.key === "ArrowRight") {

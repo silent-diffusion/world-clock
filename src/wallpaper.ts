@@ -14,10 +14,11 @@ const PICTURE_STYLES = `
   .wallpaper .details, .wallpaper .dismiss, .wallpaper .add-person, .wallpaper .copy-times,
   .wallpaper .person button, .wallpaper .alert, .wallpaper .chip-tag.change { display: none !important; }
   /* Just the clocks: no keys, headings, city pickers or other controls. */
-  .wallpaper .legend, .wallpaper .meet-people, .wallpaper .meet-result .eyebrow, .wallpaper .grip { display: none !important; }
+  .wallpaper .legend, .wallpaper .meet-people, .wallpaper .meet-result .eyebrow, .wallpaper .grip,
+  .wallpaper .year-head .icon-button, .wallpaper .year-toggles, .wallpaper .year-today { display: none !important; }
   .wallpaper .page { flex: 1; min-height: 0; height: auto; }
   .wallpaper .map-page, .wallpaper .dial-page { padding-top: 12px; }
-  .wallpaper .day-view, .wallpaper .sky-view, .wallpaper .meet-view { padding-top: 16px; overflow: hidden; }
+  .wallpaper .day-view, .wallpaper .sky-view, .wallpaper .meet-view, .wallpaper .year-view { padding-top: 16px; overflow: hidden; }
 `;
 
 function appStyles(): string {

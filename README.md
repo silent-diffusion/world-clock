@@ -33,6 +33,11 @@ move between views. Choose which views you want, and their order, in Settings.
 - **Meet**: pick the cities in a meeting (listed by time, by name, or in any order you drag
   them into) and see, hour by hour on your own day, when
   everyone is working. Copy the shared slot's times to paste into an invite.
+- **Year**: a calendar of the year that marks the days your cities' clocks change, their
+  public holidays, and the weeks when the gap between two of them isn't the usual one (for
+  example when the US and Europe change clocks on different weekends). A strip shows each
+  city's hours from you (or from the selected city) through the year. Click a day to see it
+  in every view; press Esc to come back to now.
 
 ## Features
 
@@ -123,7 +128,8 @@ Project layout:
 | --- | --- |
 | `index.html` | The app window: views, mini strip and Settings |
 | `src/main.ts` | The shell: tabs, swiping, keyboard, scrubbing time, mini mode, the top bar |
-| `src/views/` | One file per view (map, day, sky, dial, meet, mini) plus shared city data |
+| `src/views/` | One file per view (map, day, sky, dial, meet, year, mini) plus shared city data |
+| `src/year.ts` | Clock changes, unusual gaps and public holidays through a year |
 | `src/state.ts` | The selected city and time shift, shared by every view |
 | `src/time.ts` | Time-zone helpers, including finding the next clock change |
 | `src/sun.ts` | Sun position, the day/night line, sunrise and sunset |
@@ -162,4 +168,5 @@ change and share it, including in other projects, as long as the license notice 
 
 Map shapes come from public-domain [Natural Earth](https://www.naturalearthdata.com)
 data. The city search uses the [city-timezones](https://github.com/kevinroberts/city-timezones)
-list (MIT), which is also based on Natural Earth.
+list (MIT), which is also based on Natural Earth. Public holidays come from
+[date-holidays](https://github.com/commenthol/date-holidays) (ISC; holiday data CC BY 3.0).

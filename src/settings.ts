@@ -3,7 +3,7 @@ import { cityKey, DEFAULT_CITIES, type City } from "./cities";
 /** How the Settings city list is ordered: as added, A–Z, or by time zone from west to east. */
 export type CitySort = "added" | "name" | "timezone";
 
-export type ViewId = "map" | "day" | "sky" | "dial" | "meet";
+export type ViewId = "map" | "day" | "sky" | "dial" | "meet" | "year";
 
 export const VIEW_INFO: Record<ViewId, { name: string; description: string }> = {
   map: { name: "Map", description: "Every city on a live day-and-night map, with its time beside it" },
@@ -11,6 +11,7 @@ export const VIEW_INFO: Record<ViewId, { name: string; description: string }> = 
   sky: { name: "Sky", description: "A card per city, coloured by its sky right now" },
   dial: { name: "Dial", description: "All cities around one 24-hour clock face" },
   meet: { name: "Meet", description: "Find the hours when everyone is at work" },
+  year: { name: "Year", description: "The year at a glance: clock changes, holidays and unusual gaps in your cities" },
 };
 
 export interface MapExtras {
@@ -54,6 +55,8 @@ export interface Settings {
   meetCities: string[];
   /** Meet view row order: earliest local time first, A–Z, or the order the user dragged them into. */
   meetSort: "time" | "name" | "custom";
+  /** What the Year view marks. */
+  yearMarks: { changes: boolean; holidays: boolean; gaps: boolean };
   /** Mini mode shows only pinned cities. */
   miniPinnedOnly: boolean;
   /** Use a view as the desktop background, redrawn every minute. */
@@ -76,12 +79,14 @@ export function defaultSettings(): Settings {
       { id: "sky", on: true },
       { id: "dial", on: false },
       { id: "meet", on: true },
+      { id: "year", on: true },
     ],
     extras: { dateBoundary: false, dimAsleep: true, relative: false, details: true, clockAlerts: true },
     workStart: 9 * 60,
     workEnd: 17 * 60,
     meetCities: DEFAULT_CITIES.slice(3, 6).map(cityKey),
     meetSort: "time",
+    yearMarks: { changes: true, holidays: true, gaps: true },
     miniPinnedOnly: false,
     wallpaper: { on: false, layout: [{ ...FULL_SCREEN_MAP }] },
   };
@@ -135,6 +140,7 @@ export function loadSettings(): Settings {
       // Existing users get the meeting finder pre-filled with three of their own cities.
       meetCities: Array.isArray(saved.meetCities) ? saved.meetCities.filter((k) => keys.includes(k)) : keys.slice(0, 3),
       meetSort: saved.meetSort === "name" || saved.meetSort === "custom" ? saved.meetSort : defaults.meetSort,
+      yearMarks: { ...defaults.yearMarks, ...(saved.yearMarks ?? {}) },
       miniPinnedOnly: saved.miniPinnedOnly ?? defaults.miniPinnedOnly,
       wallpaper: { on: Boolean(saved.wallpaper?.on), layout: normalizeLayout(saved.wallpaper) },
     };

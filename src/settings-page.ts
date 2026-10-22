@@ -10,6 +10,7 @@ interface CityRecord {
   lng: number;
   pop: number;
   country: string;
+  iso2: string;
   province: string;
   timezone: string;
 }
@@ -340,6 +341,8 @@ function addCity(record: CityRecord): void {
       code: makeCode(record.city_ascii || record.city),
       name: record.city,
       country: record.country,
+      countryCode: record.iso2,
+      region: record.province,
       timeZone: record.timezone,
       lat: record.lat,
       lon: record.lng,
