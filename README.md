@@ -49,7 +49,8 @@ move between views. Choose which views you want, and their order, in Settings.
   - **Times relative to the selected city**: labels show "+6h" instead of the time.
   - **Where it's already tomorrow**: shades the part of the world past midnight.
 - **Desktop background**: turn on "Set as background" in Settings and pick a view. Once a
-  minute World Clock draws that view as a picture at your screen's resolution and sets it
+  minute World Clock draws that view as a picture at your main display's resolution, without
+  any notifications, and sets it
   as your Windows background, so nothing runs between updates. While it's on, closing the
   window keeps World Clock running in the background (open it again from the Start menu),
   and at sign-in it starts hidden. Turning it off puts your previous background back.
