@@ -1743,3 +1743,54 @@ select {
   background: linear-gradient(135deg, transparent 50%, var(--day) 50%);
   border-bottom-right-radius: 6px;
 }
+
+/* ---------- Meet: sort and reorder ---------- */
+
+.meet-sort {
+  margin-left: auto;
+}
+
+.person-row {
+  border-radius: 6px;
+}
+
+.person-row:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.person-row.dragging {
+  opacity: 0.4;
+}
+
+.person-row.drop-before {
+  box-shadow: 0 -2px 0 var(--ink);
+}
+
+.person-row.drop-after {
+  box-shadow: 0 2px 0 var(--ink);
+}
+
+.meet-name {
+  flex-direction: row !important;
+  align-items: center;
+  justify-content: flex-start !important;
+  gap: 8px;
+  cursor: grab;
+}
+
+.meet-name > span:last-child {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
+.meet-name .grip {
+  align-self: stretch;
+  width: 8px;
+  flex: none;
+  background-image: radial-gradient(circle, #4b5870 1.4px, transparent 1.5px);
+  background-size: 4px 5px;
+  background-position: center;
+  margin: 12px 0;
+}

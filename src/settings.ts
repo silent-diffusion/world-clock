@@ -52,6 +52,8 @@ export interface Settings {
   workEnd: number;
   /** Keys of the cities in the meeting finder. */
   meetCities: string[];
+  /** Meet view row order: earliest local time first, A–Z, or the order the user dragged them into. */
+  meetSort: "time" | "name" | "custom";
   /** Mini mode shows only pinned cities. */
   miniPinnedOnly: boolean;
   /** Use a view as the desktop background, redrawn every minute. */
@@ -79,6 +81,7 @@ export function defaultSettings(): Settings {
     workStart: 9 * 60,
     workEnd: 17 * 60,
     meetCities: DEFAULT_CITIES.slice(3, 6).map(cityKey),
+    meetSort: "time",
     miniPinnedOnly: false,
     wallpaper: { on: false, layout: [{ ...FULL_SCREEN_MAP }] },
   };
@@ -131,6 +134,7 @@ export function loadSettings(): Settings {
       workEnd: typeof saved.workEnd === "number" ? saved.workEnd : defaults.workEnd,
       // Existing users get the meeting finder pre-filled with three of their own cities.
       meetCities: Array.isArray(saved.meetCities) ? saved.meetCities.filter((k) => keys.includes(k)) : keys.slice(0, 3),
+      meetSort: saved.meetSort === "name" || saved.meetSort === "custom" ? saved.meetSort : defaults.meetSort,
       miniPinnedOnly: saved.miniPinnedOnly ?? defaults.miniPinnedOnly,
       wallpaper: { on: Boolean(saved.wallpaper?.on), layout: normalizeLayout(saved.wallpaper) },
     };

@@ -52,6 +52,7 @@ function render(): void {
     page.hidden = !views.includes(id);
     page.style.order = String(views.indexOf(id));
   }
+  clock.scrollLeft = 0; // see the scroll listener below
   if (!track.classList.contains("dragging")) track.style.transform = `translateX(${-views.indexOf(state.view) * 100}%)`;
 
   for (const view of views) drawView(view, snap);
@@ -191,6 +192,13 @@ function go(delta: number): void {
   setState({ view: views[index] });
 }
 
+// The views slide by transform, never by scrolling; focusing something on another page would otherwise
+// scroll the container sideways and leave the views misaligned.
+clock.addEventListener("scroll", () => {
+  clock.scrollLeft = 0;
+  clock.scrollTop = 0;
+});
+
 // A swipe ends with a click on whatever was under the pointer; swallow it.
 let justDragged = false;
 clock.addEventListener(
@@ -256,7 +264,8 @@ clock.addEventListener(
 let drag: { x: number; y: number; moved: boolean } | null = null;
 clock.addEventListener("pointerdown", (event) => {
   if (event.pointerType === "mouse" && event.button !== 0) return;
-  if ((event.target as Element).closest("input, select, textarea, .details")) return;
+  // Leave rows that can be dragged into a new order (and form fields) to themselves.
+  if ((event.target as Element).closest("input, select, textarea, .details, [draggable='true']")) return;
   drag = { x: event.clientX, y: event.clientY, moved: false };
 });
 clock.addEventListener("pointermove", (event) => {

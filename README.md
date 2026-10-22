@@ -30,7 +30,8 @@ move between views. Choose which views you want, and their order, in Settings.
 - **Sky**: a card per city, coloured by its real sky right now: morning, afternoon,
   evening, twilight or night.
 - **Dial**: every city placed around one 24-hour clock face, with your time in the middle.
-- **Meet**: pick the cities in a meeting and see, hour by hour on your own day, when
+- **Meet**: pick the cities in a meeting (listed by time, by name, or in any order you drag
+  them into) and see, hour by hour on your own day, when
   everyone is working. Copy the shared slot's times to paste into an invite.
 
 ## Features
