@@ -34,6 +34,9 @@ const extrasList = $<HTMLDivElement>("extras-list");
 const workStart = $<HTMLSelectElement>("work-start");
 const workEnd = $<HTMLSelectElement>("work-end");
 const miniPinned = $<HTMLInputElement>("mini-pinned");
+const wallpaperOn = $<HTMLInputElement>("wallpaper-on");
+const wallpaperView = $<HTMLSelectElement>("wallpaper-view");
+const wallpaperStatus = $<HTMLSpanElement>("wallpaper-status");
 const cityList = $<HTMLUListElement>("city-list");
 const search = $<HTMLInputElement>("city-search");
 const results = $<HTMLUListElement>("search-results");
@@ -174,6 +177,24 @@ function renderHours(): void {
 workStart.addEventListener("change", () => update((s) => (s.workStart = Number(workStart.value))));
 workEnd.addEventListener("change", () => update((s) => (s.workEnd = Number(workEnd.value))));
 miniPinned.addEventListener("change", () => update((s) => (s.miniPinnedOnly = miniPinned.checked)));
+
+// ---- Desktop background ----
+
+function renderWallpaper(): void {
+  wallpaperView.innerHTML = (Object.keys(VIEW_INFO) as ViewId[])
+    .map((id) => `<option value="${id}"${id === settings.wallpaper.view ? " selected" : ""}>${VIEW_INFO[id].name}</option>`)
+    .join("");
+  wallpaperOn.checked = settings.wallpaper.on;
+  if (!inTauri) {
+    wallpaperOn.disabled = true;
+    wallpaperStatus.textContent = "Available in the desktop app";
+  } else {
+    wallpaperStatus.textContent = settings.wallpaper.on ? "Updating every minute" : "Your own background stays until you turn this on";
+  }
+}
+
+wallpaperOn.addEventListener("change", () => update((s) => (s.wallpaper.on = wallpaperOn.checked), renderWallpaper));
+wallpaperView.addEventListener("change", () => update((s) => (s.wallpaper.view = wallpaperView.value as ViewId)));
 
 // ---- Cities ----
 
@@ -406,6 +427,7 @@ export function refreshSettingsPage(): void {
   renderViews();
   renderExtras();
   renderHours();
+  renderWallpaper();
   renderCities();
 }
 

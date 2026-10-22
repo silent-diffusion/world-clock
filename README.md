@@ -48,6 +48,11 @@ move between views. Choose which views you want, and their order, in Settings.
   - **Dim cities where people are asleep** (11 PM to 7 AM local time).
   - **Times relative to the selected city**: labels show "+6h" instead of the time.
   - **Where it's already tomorrow**: shades the part of the world past midnight.
+- **Desktop background**: turn on "Set as background" in Settings and pick a view. Once a
+  minute World Clock draws that view as a picture at your screen's resolution and sets it
+  as your Windows background, so nothing runs between updates. While it's on, closing the
+  window keeps World Clock running in the background (open it again from the Start menu),
+  and at sign-in it starts hidden. Turning it off puts your previous background back.
 - **Mini mode**: shrink to a slim strip of times, the same height as the Windows 11
   taskbar. It opens sitting on the taskbar, stays on top of it (and every other window),
   remembers where you drag it, and shows every city or only the ones you've pinned.
@@ -120,7 +125,9 @@ Project layout:
 | `src/settings.ts` | Saved settings |
 | `src/settings-page.ts` | The Settings page |
 | `src/updates.ts` | Checks GitHub for a newer release |
+| `src/wallpaper.ts` | Draws a view as a full-screen picture for the desktop background |
 | `src-tauri/src/update.rs` | Downloads, verifies and runs the update installer |
+| `src-tauri/src/wallpaper.rs` | Sets the Windows background, ticks every minute, keeps running when closed |
 | `src-tauri/` | The Rust/Tauri desktop shell and window settings |
 
 ## Releasing (maintainers)
