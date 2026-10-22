@@ -1,6 +1,6 @@
 [package]
 name = "world-clock"
-version = "1.1.1"
+version = "1.2.0"
 description = "Desktop world clock widget with a live day/night map"
 authors = ["silent-diffusion"]
 license = "MIT"
@@ -28,3 +28,12 @@ sha2 = "0.11.1"
 
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.61.2", features = ["Win32_UI_WindowsAndMessaging"] }
+windows = { version = "0.62.2", features = [
+  "Win32_Foundation",
+  "Win32_System_Com",
+  "Win32_System_Ole",
+  "Win32_System_Variant",
+  "Win32_UI_Shell",
+  "Win32_UI_Shell_Common",
+  "Win32_UI_WindowsAndMessaging",
+] }

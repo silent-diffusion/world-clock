@@ -2,6 +2,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use tauri::{Manager, WindowEvent};
 use tauri_plugin_window_state::StateFlags;
 
+mod desktop_icons;
 mod update;
 mod wallpaper;
 
@@ -47,7 +48,8 @@ pub fn run() {
             wallpaper::current_wallpaper,
             wallpaper::restore_wallpaper,
             wallpaper::set_keep_running,
-            wallpaper::launched_at_login
+            wallpaper::launched_at_login,
+            desktop_icons::desktop_icons
         ])
         .setup(|app| {
             update::clean_up(app.handle());

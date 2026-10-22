@@ -1,5 +1,6 @@
 import { cityKey, defaultLabelSide, makeCode, type City, type LabelSide } from "./cities";
 import { inTauri, loadSettings, saveSettings, VIEW_INFO, type CitySort, type MapExtras, type Settings, type ViewId } from "./settings";
+import { showBackgroundEditor } from "./background-editor";
 import { clockText, utcOffsetMinutes } from "./time";
 
 interface CityRecord {
@@ -12,13 +13,6 @@ interface CityRecord {
   province: string;
   timezone: string;
 }
-
-const LABEL_SIDES: { value: LabelSide; text: string }[] = [
-  { value: "right", text: "Label right" },
-  { value: "left", text: "Label left" },
-  { value: "above", text: "Label above" },
-  { value: "below", text: "Label below" },
-];
 
 const EXTRAS: { id: keyof MapExtras; name: string; description: string }[] = [
   { id: "dateBoundary", name: "Show where it's already tomorrow", description: "Shades the part of the world past midnight and names both days" },
@@ -35,7 +29,6 @@ const workStart = $<HTMLSelectElement>("work-start");
 const workEnd = $<HTMLSelectElement>("work-end");
 const miniPinned = $<HTMLInputElement>("mini-pinned");
 const wallpaperOn = $<HTMLInputElement>("wallpaper-on");
-const wallpaperView = $<HTMLSelectElement>("wallpaper-view");
 const wallpaperStatus = $<HTMLSpanElement>("wallpaper-status");
 const cityList = $<HTMLUListElement>("city-list");
 const search = $<HTMLInputElement>("city-search");
@@ -47,6 +40,10 @@ const updateStatus = $<HTMLSpanElement>("update-status");
 const checkNow = $<HTMLButtonElement>("check-now");
 const install = $<HTMLButtonElement>("install");
 const citySort = $<HTMLSelectElement>("city-sort");
+const cityCode = $<HTMLInputElement>("city-code");
+const citySide = $<HTMLSelectElement>("city-side");
+const cityPinned = $<HTMLInputElement>("city-pinned");
+const cityNote = $<HTMLInputElement>("city-note");
 
 let settings: Settings = loadSettings();
 let matches: CityRecord[] = [];
@@ -181,9 +178,6 @@ miniPinned.addEventListener("change", () => update((s) => (s.miniPinnedOnly = mi
 // ---- Desktop background ----
 
 function renderWallpaper(): void {
-  wallpaperView.innerHTML = (Object.keys(VIEW_INFO) as ViewId[])
-    .map((id) => `<option value="${id}"${id === settings.wallpaper.view ? " selected" : ""}>${VIEW_INFO[id].name}</option>`)
-    .join("");
   wallpaperOn.checked = settings.wallpaper.on;
   if (!inTauri) {
     wallpaperOn.disabled = true;
@@ -194,7 +188,6 @@ function renderWallpaper(): void {
 }
 
 wallpaperOn.addEventListener("change", () => update((s) => (s.wallpaper.on = wallpaperOn.checked), renderWallpaper));
-wallpaperView.addEventListener("change", () => update((s) => (s.wallpaper.view = wallpaperView.value as ViewId)));
 
 // ---- Cities ----
 
@@ -225,61 +218,64 @@ function renderCities(): void {
     .map((i) => {
       const city = settings.cities[i];
       const where = [city.country, city.timeZone.replace(/_/g, " ")].filter(Boolean).join(" · ");
-      const options = LABEL_SIDES.map(
-        (side) => `<option value="${side.value}"${side.value === city.label ? " selected" : ""}>${side.text}</option>`,
-      ).join("");
-      return `<li class="city" data-index="${i}">
-        <input class="code" type="text" maxlength="4" value="${escapeHtml(city.code)}" aria-label="Map label for ${escapeHtml(city.name)}" />
-        <div class="info">
-          <span class="name">${escapeHtml(city.name)}</span>
-          <span class="meta">${clockText(now, city.timeZone)} · ${escapeHtml(where)}</span>
-        </div>
-        <button class="pin-toggle" type="button" aria-pressed="${Boolean(city.pinned)}" aria-label="Pin ${escapeHtml(city.name)} for mini mode" title="Pin for mini mode">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="${city.pinned ? "currentColor" : "none"}" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M12 2l3 6.5 7 .8-5.2 4.8 1.5 7L12 17.6 5.7 21.1l1.5-7L2 9.3l7-.8z"/></svg>
-        </button>
-        <select class="side" aria-label="Label position for ${escapeHtml(city.name)}">${options}</select>
-        <button class="remove" type="button" aria-label="Remove ${escapeHtml(city.name)}" title="Remove">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
-        </button>
-        <input class="note text-input" type="text" maxlength="80" placeholder="Add a note, like who you know here" value="${escapeHtml(city.note ?? "")}" aria-label="Note for ${escapeHtml(city.name)}" />
-      </li>`;
+      const star = city.pinned
+        ? `<svg class="pinned" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-label="Pinned"><path d="M12 2l3 6.5 7 .8-5.2 4.8 1.5 7L12 17.6 5.7 21.1l1.5-7L2 9.3l7-.8z"/></svg>`
+        : "";
+      return `<li><button type="button" class="row menu-row city-row" data-index="${i}">
+        <span class="code-badge">${escapeHtml(city.code)}</span>
+        <span class="row-text"><span class="row-title">${escapeHtml(city.name)} ${star}</span><span class="row-sub">${clockText(now, city.timeZone)} · ${escapeHtml(where)}${city.note ? ` · ${escapeHtml(city.note)}` : ""}</span></span>
+        <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>
+      </button></li>`;
     })
     .join("");
 }
 
-function cityIndex(target: EventTarget | null): number {
-  const row = (target as HTMLElement | null)?.closest<HTMLElement>(".city");
-  return row ? Number(row.dataset.index) : -1;
-}
-
-cityList.addEventListener("change", (event) => {
-  const i = cityIndex(event.target);
-  if (i < 0) return;
-  const el = event.target as HTMLInputElement | HTMLSelectElement;
-  if (el.classList.contains("code")) {
-    const code = el.value.trim().toUpperCase() || makeCode(settings.cities[i].name);
-    el.value = code;
-    update((s) => (s.cities[i].code = code));
-  } else if (el.classList.contains("side")) {
-    update((s) => (s.cities[i].label = el.value as LabelSide));
-  } else if (el.classList.contains("note")) {
-    update((s) => (s.cities[i].note = el.value.trim() || undefined));
-  }
+cityList.addEventListener("click", (event) => {
+  const row = (event.target as Element).closest<HTMLElement>(".city-row");
+  if (row) openCity(Number(row.dataset.index));
 });
 
-cityList.addEventListener("click", (event) => {
-  const i = cityIndex(event.target);
-  if (i < 0) return;
-  const target = event.target as Element;
-  if (target.closest(".remove")) {
-    const key = cityKey(settings.cities[i]);
-    update((s) => {
-      s.cities.splice(i, 1);
-      s.meetCities = s.meetCities.filter((k) => k !== key);
-    }, renderCities);
-  } else if (target.closest(".pin-toggle")) {
-    update((s) => (s.cities[i].pinned = !s.cities[i].pinned || undefined), renderCities);
-  }
+// ---- One city's page ----
+
+let openCityIndex = -1;
+
+function openCity(index: number): void {
+  openCityIndex = index;
+  const city = settings.cities[index];
+  $("city-detail-name").textContent = city.name;
+  $("city-detail-meta").textContent = [city.country, city.timeZone.replace(/_/g, " "), `now ${clockText(new Date(), city.timeZone)}`]
+    .filter(Boolean)
+    .join(" · ");
+  cityCode.value = city.code;
+  citySide.value = city.label;
+  cityPinned.checked = Boolean(city.pinned);
+  cityNote.value = city.note ?? "";
+  showPanel("city", city.name);
+}
+
+function editCity(change: (city: City) => void): void {
+  if (openCityIndex < 0) return;
+  update((s) => change(s.cities[openCityIndex]));
+}
+
+cityCode.addEventListener("change", () => {
+  const code = cityCode.value.trim().toUpperCase() || makeCode(settings.cities[openCityIndex].name);
+  cityCode.value = code;
+  editCity((c) => (c.code = code));
+});
+citySide.addEventListener("change", () => editCity((c) => (c.label = citySide.value as LabelSide)));
+cityPinned.addEventListener("change", () => editCity((c) => (c.pinned = cityPinned.checked || undefined)));
+cityNote.addEventListener("change", () => editCity((c) => (c.note = cityNote.value.trim() || undefined)));
+
+$("city-remove").addEventListener("click", () => {
+  if (openCityIndex < 0) return;
+  const key = cityKey(settings.cities[openCityIndex]);
+  update((s) => {
+    s.cities.splice(openCityIndex, 1);
+    s.meetCities = s.meetCities.filter((k) => k !== key);
+  });
+  openCityIndex = -1;
+  settingsGoBack();
 });
 
 citySort.addEventListener("change", () => update((s) => (s.citySort = citySort.value as CitySort), renderCities));
@@ -416,6 +412,77 @@ async function initUpdates(): Promise<void> {
   });
 }
 
+// ---- Menu ----
+
+type PanelId = "root" | "cities" | "city" | "views" | "extras" | "hours" | "background" | "mini" | "updates";
+
+const PANEL_TITLES: Record<Exclude<PanelId, "city">, string> = {
+  root: "Settings",
+  cities: "Cities",
+  views: "Views",
+  extras: "Map extras",
+  hours: "Working hours",
+  background: "Desktop background",
+  mini: "Mini mode",
+  updates: "Updates",
+};
+
+let currentPanel: PanelId = "root";
+
+function parentOf(panel: PanelId): PanelId | null {
+  if (panel === "root") return null;
+  return panel === "city" ? "cities" : "root";
+}
+
+function showPanel(panel: PanelId, title?: string): void {
+  currentPanel = panel;
+  for (const el of document.querySelectorAll<HTMLElement>("#settings-view .panel")) el.hidden = el.dataset.panel !== panel;
+  $("settings-title").textContent = title ?? PANEL_TITLES[panel as Exclude<PanelId, "city">];
+  const parent = parentOf(panel);
+  $("settings-back-label").textContent = parent ? PANEL_TITLES[parent as Exclude<PanelId, "city">] : "Back to the clock";
+  document.querySelector(".settings-body")!.scrollTop = 0;
+  if (panel === "root") renderSummaries();
+  if (panel === "cities") renderCities();
+  if (panel === "background") showBackgroundEditor(settings, (layout) => update((s) => (s.wallpaper.layout = layout)));
+}
+
+/** Goes up one level. Returns false at the top, where the caller closes Settings. */
+export function settingsGoBack(): boolean {
+  const parent = parentOf(currentPanel);
+  if (!parent) return false;
+  const from = currentPanel;
+  showPanel(parent);
+  // Put focus back on the row that was opened, so keyboard users keep their place.
+  const opener = from === "city" ? null : document.querySelector<HTMLElement>(`[data-open="${from}"]`);
+  (opener ?? $("settings-back")).focus();
+  return true;
+}
+
+document.querySelector(".settings-body")!.addEventListener("click", (event) => {
+  const row = (event.target as Element).closest<HTMLElement>("[data-open]");
+  if (row) showPanel(row.dataset.open as PanelId);
+});
+
+/** The current value of each section, shown under its name on the main list. */
+function renderSummaries(): void {
+  const on = settings.views.filter((v) => v.on).map((v) => VIEW_INFO[v.id].name);
+  const extrasOn = EXTRAS.filter((x) => settings.extras[x.id]).length;
+  const pinned = settings.cities.filter((c) => c.pinned).length;
+  const summaries: Record<string, string> = {
+    cities: `${settings.cities.length} ${settings.cities.length === 1 ? "city" : "cities"}`,
+    views: on.join(", "),
+    extras: `${extrasOn} of ${EXTRAS.length} on`,
+    hours: `${timeOption(settings.workStart)} – ${timeOption(settings.workEnd)}`,
+    background: settings.wallpaper.on ? `On · ${settings.wallpaper.layout.map((t) => VIEW_INFO[t.view].name).join(" + ")}` : "Off",
+    mini: settings.miniPinnedOnly ? `Pinned cities only (${pinned})` : "All cities",
+    updates: `${version.textContent?.replace("…", "").trim() || "Version"}${settings.autoCheckUpdates ? " · checks automatically" : ""}`,
+  };
+  for (const [id, text] of Object.entries(summaries)) {
+    const el = document.getElementById(`sum-${id}`);
+    if (el) el.textContent = text;
+  }
+}
+
 // ---- Start ----
 
 /** Re-reads the saved settings and redraws the page; called each time Settings opens. */
@@ -429,6 +496,7 @@ export function refreshSettingsPage(): void {
   renderHours();
   renderWallpaper();
   renderCities();
+  showPanel("root");
 }
 
 initAutostart();

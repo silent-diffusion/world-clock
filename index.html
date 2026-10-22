@@ -76,104 +76,172 @@
       <div class="settings-head">
         <button type="button" id="settings-back" class="back">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
-          Back to the clock
+          <span id="settings-back-label">Back to the clock</span>
         </button>
-        <h1>Settings</h1>
+        <h1 id="settings-title">Settings</h1>
         <span></span>
       </div>
 
+      <!-- Settings is a menu: the main list opens one page per section, and each city opens its own page. -->
       <div class="settings-body">
-        <section aria-labelledby="views-heading">
-          <div class="section-text">
-            <h2 id="views-heading">Views</h2>
-            <p class="hint">Swipe between the views you turn on, in this order. Drag to reorder. The map is always on.</p>
+        <div class="panel" data-panel="root">
+          <section aria-labelledby="group-clock">
+            <h2 id="group-clock">Clock</h2>
+            <div class="card list">
+            <button type="button" class="row menu-row" data-open="cities">
+              <span class="row-text"><span class="row-title">Cities</span><span class="row-sub" id="sum-cities"></span></span>
+              <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>
+            </button>
+            <button type="button" class="row menu-row" data-open="views">
+              <span class="row-text"><span class="row-title">Views</span><span class="row-sub" id="sum-views"></span></span>
+              <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>
+            </button>
+            <button type="button" class="row menu-row" data-open="extras">
+              <span class="row-text"><span class="row-title">Map extras</span><span class="row-sub" id="sum-extras"></span></span>
+              <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>
+            </button>
+            <button type="button" class="row menu-row" data-open="hours">
+              <span class="row-text"><span class="row-title">Working hours</span><span class="row-sub" id="sum-hours"></span></span>
+              <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>
+            </button>
+            </div>
+          </section>
+          <section aria-labelledby="group-desktop">
+            <h2 id="group-desktop">On your desktop</h2>
+            <div class="card list">
+            <button type="button" class="row menu-row" data-open="background">
+              <span class="row-text"><span class="row-title">Desktop background</span><span class="row-sub" id="sum-background"></span></span>
+              <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>
+            </button>
+            <button type="button" class="row menu-row" data-open="mini">
+              <span class="row-text"><span class="row-title">Mini mode</span><span class="row-sub" id="sum-mini"></span></span>
+              <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>
+            </button>
+            </div>
+          </section>
+          <section aria-labelledby="group-app">
+            <h2 id="group-app">App</h2>
+            <div class="card list">
+              <label class="row">
+                <span class="row-text"><span class="row-title">Start World Clock when I sign in</span></span>
+                <input id="autostart" type="checkbox" role="switch" class="switch" />
+              </label>
+            <button type="button" class="row menu-row" data-open="updates">
+              <span class="row-text"><span class="row-title">Updates</span><span class="row-sub" id="sum-updates"></span></span>
+              <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>
+            </button>
+            </div>
+          </section>
+        </div>
+
+        <div class="panel" data-panel="cities" hidden>
+          <section>
+            <div class="section-head">
+              <p class="hint">Choose a city to change its label, pin it for mini mode, add a note or remove it.</p>
+              <label class="sort">
+                <span>Sort by</span>
+                <select id="city-sort">
+                  <option value="added">Date added</option>
+                  <option value="name">Name (A–Z)</option>
+                  <option value="timezone">Time zone (west to east)</option>
+                </select>
+              </label>
+            </div>
+            <ul id="city-list" class="card list"></ul>
+          </section>
+          <section class="search">
+            <label for="city-search">Add a city</label>
+            <input id="city-search" type="search" placeholder="Search for a city…" autocomplete="off" />
+            <ul id="search-results" class="card results" hidden></ul>
+          </section>
+        </div>
+
+        <div class="panel" data-panel="city" hidden>
+          <div class="city-hero">
+            <span id="city-detail-name" class="hero-title"></span>
+            <span id="city-detail-meta" class="row-sub"></span>
           </div>
+          <div class="card list">
+            <label class="row">
+              <span class="row-text"><span class="row-title">Map label</span><span class="row-sub">Up to 4 letters, shown beside the pin</span></span>
+              <input id="city-code" class="text-input code-input" type="text" maxlength="4" />
+            </label>
+            <label class="row">
+              <span class="row-text"><span class="row-title">Label position</span><span class="row-sub">Which side of the pin the label sits on</span></span>
+              <select id="city-side">
+                <option value="right">Right</option>
+                <option value="left">Left</option>
+                <option value="above">Above</option>
+                <option value="below">Below</option>
+              </select>
+            </label>
+            <label class="row">
+              <span class="row-text"><span class="row-title">Pin for mini mode</span><span class="row-sub">Shown when mini mode is set to pinned cities only</span></span>
+              <input id="city-pinned" type="checkbox" role="switch" class="switch" />
+            </label>
+            <div class="row stacked">
+              <label for="city-note" class="row-title">Note</label>
+              <input id="city-note" class="text-input" type="text" maxlength="80" placeholder="Add a note, like who you know here" />
+            </div>
+          </div>
+          <button type="button" id="city-remove" class="danger">Remove this city</button>
+        </div>
+
+        <div class="panel" data-panel="views" hidden>
+          <p class="hint">Swipe between the views you turn on, in this order. Drag to reorder. The map is always on.</p>
           <ul id="view-list" class="card list"></ul>
-        </section>
+        </div>
 
-        <section aria-labelledby="extras-heading">
-          <div class="section-text">
-            <h2 id="extras-heading">On the map</h2>
-            <p class="hint">Extras you can layer onto the map.</p>
-          </div>
+        <div class="panel" data-panel="extras" hidden>
+          <p class="hint">Extras you can layer onto the map.</p>
           <div id="extras-list" class="card list"></div>
-        </section>
+        </div>
 
-        <section aria-labelledby="hours-heading">
-          <div class="section-text">
-            <h2 id="hours-heading">Working hours</h2>
-            <p class="hint">Used by the Day view and the meeting finder, in each city's local time.</p>
-          </div>
+        <div class="panel" data-panel="hours" hidden>
+          <p class="hint">Used by the Day view and the meeting finder, in each city's local time.</p>
           <div class="card inline-row">
             <label>From <select id="work-start"></select></label>
             <label>to <select id="work-end"></select></label>
           </div>
-        </section>
+        </div>
 
-        <section aria-labelledby="background-heading">
-          <div class="section-text">
-            <h2 id="background-heading">Desktop background</h2>
-            <p class="hint">Use a view as your Windows desktop background, redrawn every minute. While it's on, closing the window keeps World Clock running in the background; open it again from the Start menu.</p>
-          </div>
+        <div class="panel" data-panel="background" hidden>
+          <p class="hint">Arrange one or more views as your Windows desktop background, redrawn every minute. While it's on, closing the window keeps World Clock running in the background; open it again from the Start menu.</p>
           <div class="card list">
             <label class="row">
               <span class="row-text"><span class="row-title">Set as background</span><span id="wallpaper-status" class="row-sub"></span></span>
               <input id="wallpaper-on" type="checkbox" role="switch" class="switch" />
             </label>
-            <label class="row">
-              <span class="row-text"><span class="row-title">View</span></span>
-              <select id="wallpaper-view"></select>
-            </label>
           </div>
-        </section>
+          <section class="designer" aria-labelledby="designer-heading">
+            <div class="section-head">
+              <h2 id="designer-heading">Layout</h2>
+              <div class="buttons">
+                <select id="bg-add" aria-label="Add a view to the background"></select>
+                <button type="button" id="bg-preview">Preview</button>
+                <button type="button" id="bg-icons">Refresh icons</button>
+                <button type="button" id="bg-reset">Reset</button>
+              </div>
+            </div>
+            <div id="bg-board" class="bg-board" aria-label="Background layout"></div>
+            <p id="bg-note" class="hint">Drag a view to move it and its corner to resize it. Outlined squares are your desktop icons; the strip at the bottom is the taskbar.</p>
+          </section>
+        </div>
 
-        <section aria-labelledby="mini-heading">
-          <h2 id="mini-heading">Mini mode</h2>
+        <div class="panel" data-panel="mini" hidden>
           <div class="card list">
             <div class="row">
-              <span class="row-text"><span class="row-title">Shrink to a strip</span><span class="row-sub">A slim bar of times that stays on top of other windows</span></span>
+              <span class="row-text"><span class="row-title">Shrink to a strip</span><span class="row-sub">A slim bar of times that sits on the taskbar and stays on top</span></span>
               <button type="button" id="open-mini" class="primary">Open mini mode</button>
             </div>
             <label class="row">
-              <span class="row-text"><span class="row-title">Only pinned cities</span><span class="row-sub">Pin cities below to keep the strip short</span></span>
+              <span class="row-text"><span class="row-title">Only pinned cities</span><span class="row-sub">Pin cities in Cities to keep the strip short</span></span>
               <input id="mini-pinned" type="checkbox" role="switch" class="switch" />
             </label>
           </div>
-        </section>
+        </div>
 
-        <section aria-labelledby="cities-heading">
-          <div class="section-head">
-            <h2 id="cities-heading">Cities</h2>
-            <label class="sort">
-              <span>Sort by</span>
-              <select id="city-sort">
-                <option value="added">Date added</option>
-                <option value="name">Name (A–Z)</option>
-                <option value="timezone">Time zone (west to east)</option>
-              </select>
-            </label>
-          </div>
-          <p class="hint">Change a city's short label, where it sits next to its pin, pin it for mini mode, or add a note.</p>
-          <ul id="city-list" class="card list"></ul>
-          <div class="search">
-            <label for="city-search">Add a city</label>
-            <input id="city-search" type="search" placeholder="Search for a city…" autocomplete="off" />
-            <ul id="search-results" class="card results" hidden></ul>
-          </div>
-        </section>
-
-        <section aria-labelledby="general-heading">
-          <h2 id="general-heading">General</h2>
-          <div class="card list">
-            <label class="row">
-              <span class="row-text"><span class="row-title">Start World Clock when I sign in</span></span>
-              <input id="autostart" type="checkbox" role="switch" class="switch" />
-            </label>
-          </div>
-        </section>
-
-        <section aria-labelledby="updates-heading">
-          <h2 id="updates-heading">Updates</h2>
+        <div class="panel" data-panel="updates" hidden>
           <div class="card list">
             <label class="row">
               <span class="row-text"><span class="row-title">Check for updates automatically</span></span>
@@ -190,7 +258,7 @@
               </span>
             </div>
           </div>
-        </section>
+        </div>
       </div>
     </main>
   </body>

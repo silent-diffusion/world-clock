@@ -26,6 +26,18 @@ export interface MapExtras {
   clockAlerts: boolean;
 }
 
+/** One view placed on the desktop background, as fractions of the screen (0 to 1). */
+export interface BackgroundTile {
+  view: ViewId;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+/** The default background: the map filling the screen above the taskbar. */
+export const FULL_SCREEN_MAP: BackgroundTile = { view: "map", x: 0, y: 0, w: 1, h: 0.95 };
+
 export interface Settings {
   /** Kept in the order the cities were added. */
   cities: City[];
@@ -43,7 +55,7 @@ export interface Settings {
   /** Mini mode shows only pinned cities. */
   miniPinnedOnly: boolean;
   /** Use a view as the desktop background, redrawn every minute. */
-  wallpaper: { on: boolean; view: ViewId };
+  wallpaper: { on: boolean; layout: BackgroundTile[] };
 }
 
 const STORAGE_KEY = "world-clock.settings";
@@ -68,7 +80,7 @@ export function defaultSettings(): Settings {
     workEnd: 17 * 60,
     meetCities: DEFAULT_CITIES.slice(3, 6).map(cityKey),
     miniPinnedOnly: false,
-    wallpaper: { on: false, view: "map" },
+    wallpaper: { on: false, layout: [{ ...FULL_SCREEN_MAP }] },
   };
 }
 
@@ -80,6 +92,26 @@ function normalizeViews(saved: unknown, fallback: Settings["views"]): Settings["
     : [];
   for (const v of fallback) if (!list.some((w) => w.id === v.id)) list.push({ ...v });
   return list.map((v) => ({ id: v.id, on: v.id === "map" ? true : Boolean(v.on) }));
+}
+
+const clamp = (n: unknown, min: number, max: number, fallback: number): number =>
+  typeof n === "number" && Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : fallback;
+
+/** Valid tiles only; 1.1.x saved a single view, which becomes one full-screen tile. */
+function normalizeLayout(saved: unknown): BackgroundTile[] {
+  const s = saved as { layout?: unknown; view?: unknown } | undefined;
+  if (Array.isArray(s?.layout)) {
+    const tiles = (s!.layout as Partial<BackgroundTile>[])
+      .filter((tile) => tile && typeof tile.view === "string" && tile.view in VIEW_INFO)
+      .map((tile) => {
+        const w = clamp(tile.w, 0.05, 1, 1);
+        const h = clamp(tile.h, 0.05, 1, 1);
+        return { view: tile.view as ViewId, w, h, x: clamp(tile.x, 0, 1 - w, 0), y: clamp(tile.y, 0, 1 - h, 0) };
+      });
+    if (tiles.length) return tiles;
+  }
+  const view = typeof s?.view === "string" && s.view in VIEW_INFO ? (s.view as ViewId) : "map";
+  return [{ ...FULL_SCREEN_MAP, view }];
 }
 
 export function loadSettings(): Settings {
@@ -100,10 +132,7 @@ export function loadSettings(): Settings {
       // Existing users get the meeting finder pre-filled with three of their own cities.
       meetCities: Array.isArray(saved.meetCities) ? saved.meetCities.filter((k) => keys.includes(k)) : keys.slice(0, 3),
       miniPinnedOnly: saved.miniPinnedOnly ?? defaults.miniPinnedOnly,
-      wallpaper: {
-        on: Boolean(saved.wallpaper?.on),
-        view: saved.wallpaper?.view && saved.wallpaper.view in VIEW_INFO ? saved.wallpaper.view : defaults.wallpaper.view,
-      },
+      wallpaper: { on: Boolean(saved.wallpaper?.on), layout: normalizeLayout(saved.wallpaper) },
     };
   } catch {
     return defaults;
