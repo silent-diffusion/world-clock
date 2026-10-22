@@ -1952,16 +1952,23 @@ select {
   text-align: center;
 }
 
+.year-wd.weekend {
+  color: var(--day);
+}
+
+/* Days still to come are bright, days gone by are greyed out, and weekends take the accent blue. */
 .year-day {
   position: relative;
-  height: 28px;
-  padding: 0;
+  height: 32px;
+  /* Lifts the number so the day's dots sit clearly below it. */
+  padding: 0 0 9px;
   border: 0;
   border-radius: 6px;
   background: transparent;
-  color: var(--soft);
+  color: var(--ink);
   font: inherit;
   font-size: 13px;
+  font-weight: 500;
   font-variant-numeric: tabular-nums;
   line-height: 1;
 }
@@ -1976,11 +1983,20 @@ select {
 }
 
 .year-day.weekend {
-  color: #a3afc5;
+  color: var(--day);
 }
 
 .year-day.past {
-  color: #7d8aa3;
+  color: #4f5a70;
+  font-weight: 400;
+}
+
+.year-day.past.weekend:not(.shown) {
+  color: #44557a;
+}
+
+.year-day.past .year-marks {
+  opacity: 0.5;
 }
 
 .year-day.odd {
@@ -2003,7 +2019,7 @@ select {
   position: absolute;
   left: 0;
   right: 0;
-  bottom: 2px;
+  bottom: 4px;
   display: flex;
   justify-content: center;
   gap: 3px;
