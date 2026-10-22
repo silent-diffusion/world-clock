@@ -3,13 +3,14 @@ import { inTauri, loadSettings, onSettingsChanged, VIEW_INFO, type Settings, typ
 import { refreshSettingsPage } from "./settings-page";
 import { onStateChange, setState, state } from "./state";
 import { clockText, formatShift, longDate, systemTimeZone } from "./time";
-import { snapshot } from "./views/common";
+import { snapshot, type Snapshot } from "./views/common";
 import { renderDay } from "./views/day-view";
 import { renderDial } from "./views/dial-view";
 import { renderMap } from "./views/map-view";
 import { renderMeet } from "./views/meet-view";
 import { isMini, renderMini, restoreIfTooSmall, setMini } from "./views/mini-view";
 import { renderSky } from "./views/sky-view";
+import { browserScreen, pictureOfView, type ScreenSize } from "./wallpaper";
 
 const $ = (id: string) => document.getElementById(id)!;
 const clock = $("clock");
@@ -52,11 +53,7 @@ function render(): void {
   }
   if (!track.classList.contains("dragging")) track.style.transform = `translateX(${-views.indexOf(state.view) * 100}%)`;
 
-  if (views.includes("map")) renderMap(snap, settings);
-  if (views.includes("day")) renderDay(snap, settings);
-  if (views.includes("sky")) renderSky(snap);
-  if (views.includes("dial")) renderDial(snap);
-  if (views.includes("meet")) renderMeet(snap, settings);
+  for (const view of views) drawView(view, snap);
 
   // Tabs and page dots.
   $("view-tabs").innerHTML = views
@@ -91,6 +88,70 @@ function render(): void {
   $("summary").textContent = settings.extras.dimAsleep
     ? `${snap.cities.length - asleep} awake · ${asleep} asleep`
     : `${daylight} of ${snap.cities.length} cities in daylight`;
+}
+
+function drawView(view: ViewId, snap: Snapshot): void {
+  if (view === "map") renderMap(snap, settings);
+  else if (view === "day") renderDay(snap, settings);
+  else if (view === "sky") renderSky(snap);
+  else if (view === "dial") renderDial(snap);
+  else renderMeet(snap, settings);
+}
+
+// ---- Desktop background ----
+
+const ORIGINAL_WALLPAPER_KEY = "world-clock.original-wallpaper";
+let wallpaperWasOn = settings.wallpaper.on;
+let wallpaperBusy = false;
+
+/** Draws the chosen view for right now (no selection or scrubbing) and hands it to Windows. */
+async function updateWallpaper(): Promise<void> {
+  if (!inTauri || !settings.wallpaper.on || wallpaperBusy) return;
+  wallpaperBusy = true;
+  try {
+    const screen = await monitorSize();
+    const live = { selectedKey: state.selectedKey, offsetMinutes: state.offsetMinutes, detailsOpen: state.detailsOpen };
+    Object.assign(state, { selectedKey: null, offsetMinutes: 0, detailsOpen: false });
+    drawView(settings.wallpaper.view, snapshot(settings));
+    const picture = pictureOfView(settings.wallpaper.view, screen); // copies the page before its first await
+    Object.assign(state, live);
+    render();
+    const { invoke } = await import("@tauri-apps/api/core");
+    await invoke("set_wallpaper", await picture);
+  } catch (error) {
+    console.warn("Couldn't update the desktop background", error);
+  } finally {
+    wallpaperBusy = false;
+  }
+}
+
+/** The size of the monitor the window is on (the desktop the background will cover). */
+async function monitorSize(): Promise<ScreenSize> {
+  const { currentMonitor } = await import("@tauri-apps/api/window");
+  const monitor = await currentMonitor().catch(() => null);
+  if (!monitor) return browserScreen();
+  return {
+    width: Math.round(monitor.size.width / monitor.scaleFactor),
+    height: Math.round(monitor.size.height / monitor.scaleFactor),
+    scale: monitor.scaleFactor,
+  };
+}
+
+/** Reacts to the setting being turned on or off: keep running when closed, and save or restore the old background. */
+async function syncWallpaperMode(): Promise<void> {
+  if (!inTauri) return;
+  const { invoke } = await import("@tauri-apps/api/core");
+  const on = settings.wallpaper.on;
+  await invoke("set_keep_running", { on });
+  if (on && !wallpaperWasOn) {
+    const current = await invoke<string>("current_wallpaper").catch(() => "");
+    if (current && !/world-clock-[ab].png$/i.test(current)) localStorage.setItem(ORIGINAL_WALLPAPER_KEY, current);
+  } else if (!on && wallpaperWasOn) {
+    const original = localStorage.getItem(ORIGINAL_WALLPAPER_KEY);
+    if (original) await invoke("restore_wallpaper", { path: original }).catch((error) => console.warn("Couldn't restore the background", error));
+  }
+  wallpaperWasOn = on;
+  updateWallpaper();
 }
 
 // ---- Selecting and scrubbing time ----
@@ -340,6 +401,23 @@ async function setUpDesktop(): Promise<void> {
   await restoreIfTooSmall();
   setUpWindowControls();
 
+  // The desktop background: redraw on every minute from the app's own clock, which keeps ticking while
+  // the window is hidden. Started at sign-in with the background on, the window stays out of the way.
+  const { invoke } = await import("@tauri-apps/api/core");
+  const { listen } = await import("@tauri-apps/api/event");
+  listen("minute", () => {
+    tick();
+    updateWallpaper();
+  });
+  if (settings.wallpaper.on) {
+    await invoke("set_keep_running", { on: true });
+    if (await invoke<boolean>("launched_at_login")) {
+      const { getCurrentWindow } = await import("@tauri-apps/api/window");
+      await getCurrentWindow().hide();
+    }
+    updateWallpaper();
+  }
+
   const { scheduleUpdateChecks } = await import("./updates");
   scheduleUpdateChecks(() => settings.autoCheckUpdates);
 
@@ -362,6 +440,7 @@ onStateChange(render);
 onSettingsChanged(() => {
   settings = loadSettings();
   render();
+  syncWallpaperMode();
 });
 if (inTauri) setUpDesktop();
 

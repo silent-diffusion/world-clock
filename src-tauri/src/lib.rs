@@ -1,7 +1,9 @@
-use tauri::Manager;
+use std::sync::atomic::{AtomicBool, Ordering};
+use tauri::{Manager, WindowEvent};
 use tauri_plugin_window_state::StateFlags;
 
 mod update;
+mod wallpaper;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -29,9 +31,27 @@ pub fn run() {
         )
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![update::install_update])
+        .manage(wallpaper::KeepRunning(AtomicBool::new(false)))
+        .on_window_event(|window, event| {
+            // While World Clock is the desktop background, closing the window only hides it.
+            if let WindowEvent::CloseRequested { api, .. } = event {
+                if window.state::<wallpaper::KeepRunning>().0.load(Ordering::SeqCst) {
+                    api.prevent_close();
+                    let _ = window.hide();
+                }
+            }
+        })
+        .invoke_handler(tauri::generate_handler![
+            update::install_update,
+            wallpaper::set_wallpaper,
+            wallpaper::current_wallpaper,
+            wallpaper::restore_wallpaper,
+            wallpaper::set_keep_running,
+            wallpaper::launched_at_login
+        ])
         .setup(|app| {
             update::clean_up(app.handle());
+            wallpaper::start_minute_ticks(app.handle());
             Ok(())
         })
         .run(tauri::generate_context!())

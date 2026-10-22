@@ -42,6 +42,8 @@ export interface Settings {
   meetCities: string[];
   /** Mini mode shows only pinned cities. */
   miniPinnedOnly: boolean;
+  /** Use a view as the desktop background, redrawn every minute. */
+  wallpaper: { on: boolean; view: ViewId };
 }
 
 const STORAGE_KEY = "world-clock.settings";
@@ -66,6 +68,7 @@ export function defaultSettings(): Settings {
     workEnd: 17 * 60,
     meetCities: DEFAULT_CITIES.slice(3, 6).map(cityKey),
     miniPinnedOnly: false,
+    wallpaper: { on: false, view: "map" },
   };
 }
 
@@ -97,6 +100,10 @@ export function loadSettings(): Settings {
       // Existing users get the meeting finder pre-filled with three of their own cities.
       meetCities: Array.isArray(saved.meetCities) ? saved.meetCities.filter((k) => keys.includes(k)) : keys.slice(0, 3),
       miniPinnedOnly: saved.miniPinnedOnly ?? defaults.miniPinnedOnly,
+      wallpaper: {
+        on: Boolean(saved.wallpaper?.on),
+        view: saved.wallpaper?.view && saved.wallpaper.view in VIEW_INFO ? saved.wallpaper.view : defaults.wallpaper.view,
+      },
     };
   } catch {
     return defaults;
