@@ -140,15 +140,15 @@ async function monitorSize(): Promise<ScreenSize> {
   };
 }
 
-/** The background picture for the Preview button in Settings, drawn the same way as the real one. */
-setPreviewRenderer(async () => {
+/** The live preview in the background designer, drawn the same way as the real picture. */
+setPreviewRenderer(async (layout, pixelWidth) => {
   const screen = inTauri ? await monitorSize() : browserScreen();
   const live = { selectedKey: state.selectedKey, offsetMinutes: state.offsetMinutes, detailsOpen: state.detailsOpen };
   Object.assign(state, { selectedKey: null, offsetMinutes: 0, detailsOpen: false });
   const snap = snapshot(settings);
-  for (const view of new Set(settings.wallpaper.layout.map((tile) => tile.view))) drawView(view, snap);
-  // A small picture is plenty for the preview.
-  const picture = pictureOfLayout(settings.wallpaper.layout, { ...screen, scale: Math.min(screen.scale, 640 / screen.width) });
+  for (const view of new Set(layout.map((tile) => tile.view))) drawView(view, snap);
+  // Only as many pixels as the designer shows.
+  const picture = pictureOfLayout(layout, { ...screen, scale: Math.min(screen.scale, pixelWidth / screen.width) });
   Object.assign(state, live);
   render();
   return picture;
