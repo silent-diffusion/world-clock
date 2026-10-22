@@ -15,11 +15,41 @@ const PICTURE_STYLES = `
   .wallpaper .person button, .wallpaper .alert, .wallpaper .chip-tag.change { display: none !important; }
   /* Just the clocks: no keys, headings, city pickers or other controls. */
   .wallpaper .legend, .wallpaper .meet-people, .wallpaper .meet-result .eyebrow, .wallpaper .grip,
-  .wallpaper .year-head .icon-button, .wallpaper .year-toggles, .wallpaper .year-today { display: none !important; }
+  .wallpaper .year-head, .wallpaper .year-bottom { display: none !important; }
   .wallpaper .page { flex: 1; min-height: 0; height: auto; }
-  .wallpaper .map-page, .wallpaper .dial-page { padding-top: 12px; }
-  .wallpaper .day-view, .wallpaper .sky-view, .wallpaper .meet-view, .wallpaper .year-view { padding-top: 16px; overflow: hidden; }
+  .wallpaper .map-page, .wallpaper .dial-page { padding: 12px; }
+  .wallpaper .day-view, .wallpaper .sky-view, .wallpaper .meet-view, .wallpaper .year-view { padding: 16px; overflow: hidden; }
+
+  /* Every view stretches to fill its spot, across and down. */
+  .wallpaper .map-box { width: 100%; height: 100%; aspect-ratio: auto; }
+  .wallpaper .day-view { display: flex; flex-direction: column; }
+  .wallpaper .day-row { flex: 1; height: auto; min-height: 0; container-type: size; }
+  .wallpaper .day-row .bar { height: max(14px, 30cqh); border-radius: min(8px, 8cqh); }
+  .wallpaper .day-row .time-cell .big { font-size: clamp(20px, 36cqh, 44px); }
+  .wallpaper .day-row .city-cell .code, .wallpaper .day-row .city-cell .name { font-size: clamp(12px, 20cqh, 18px); }
+  .wallpaper .sky-view { grid-auto-rows: minmax(0, 1fr); align-content: stretch; }
+  .wallpaper .sky-card { min-height: 0; }
+  .wallpaper .meet-grid { flex: 1; min-height: 0; }
+  .wallpaper .meet-row.person-row { flex: 1; height: auto; min-height: 0; }
+  .wallpaper .year-calendar, .wallpaper .year-months { flex: 1; min-height: 0; height: 100%; }
+  .wallpaper .year-months {
+    grid-template-columns: repeat(var(--year-columns, 4), minmax(0, 1fr));
+    grid-template-rows: repeat(var(--year-rows, 3), minmax(0, 1fr));
+  }
+  .wallpaper .year-month { display: flex; flex-direction: column; min-height: 0; container-type: size; }
+  .wallpaper .year-month h3 { font-size: clamp(10px, min(6cqh, 4.5cqw), 28px); }
+  .wallpaper .year-grid { flex: 1; min-height: 0; grid-template-rows: auto; grid-auto-rows: minmax(0, 1fr); }
+  .wallpaper .year-wd { height: auto; font-size: clamp(9px, min(5cqh, 4cqw), 22px); }
+  .wallpaper .year-day { height: auto; font-size: clamp(10px, min(7cqh, 5.5cqw), 34px); }
+  .wallpaper .year-marks .year-mark { width: clamp(4px, 1.4cqw, 9px); height: clamp(4px, 1.4cqw, 9px); }
 `;
+
+/** Months across and down for a Year tile of this shape, keeping each month close to square. */
+function yearGrid(width: number, height: number): [number, number] {
+  const options: [number, number][] = [[12, 1], [6, 2], [4, 3], [3, 4], [2, 6], [1, 12]];
+  const misfit = ([columns, rows]: [number, number]) => Math.abs(Math.log(width / columns / (height / rows) / 1.1));
+  return options.reduce((best, option) => (misfit(option) < misfit(best) ? option : best));
+}
 
 function appStyles(): string {
   return [...document.styleSheets]
@@ -89,6 +119,13 @@ export async function pictureOfLayout(layout: BackgroundTile[], screen: ScreenSi
     const copy = page.cloneNode(true) as HTMLElement;
     copy.hidden = false;
     copy.removeAttribute("style");
+    // The dial stretches to fill its spot like the map does; the Year months are arranged to suit its shape.
+    copy.querySelector("#dial")?.setAttribute("preserveAspectRatio", "none");
+    if (tile.view === "year") {
+      const [columns, rows] = yearGrid(tileWidth, tileHeight);
+      copy.style.setProperty("--year-columns", String(columns));
+      copy.style.setProperty("--year-rows", String(rows));
+    }
     inner.append(copy);
     box.append(inner);
     wrapper.append(box);

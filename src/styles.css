@@ -1896,15 +1896,16 @@ select {
   opacity: 0.35;
 }
 
-.year-body {
+/* The hours strip and the shown day's details, side by side under the calendar. */
+.year-bottom {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 272px;
+  grid-template-columns: minmax(0, 1fr) 300px;
   align-items: start;
-  gap: 20px;
+  gap: 16px;
 }
 
 @media (max-width: 860px) {
-  .year-body {
+  .year-bottom {
     grid-template-columns: minmax(0, 1fr);
   }
 }
@@ -1921,13 +1922,13 @@ select {
 
 .year-months {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 12px 14px;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 18px 22px;
 }
 
 .year-month h3 {
-  margin: 0 0 4px 2px;
-  font-size: 10px;
+  margin: 0 0 6px 2px;
+  font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.12em;
   color: var(--muted);
@@ -1944,8 +1945,8 @@ select {
 }
 
 .year-wd {
-  height: 14px;
-  font-size: 9px;
+  height: 18px;
+  font-size: 11px;
   font-weight: 600;
   color: #7d8aa3;
   text-align: center;
@@ -1953,14 +1954,14 @@ select {
 
 .year-day {
   position: relative;
-  height: 20px;
+  height: 28px;
   padding: 0;
   border: 0;
-  border-radius: 5px;
+  border-radius: 6px;
   background: transparent;
   color: var(--soft);
   font: inherit;
-  font-size: 10.5px;
+  font-size: 13px;
   font-variant-numeric: tabular-nums;
   line-height: 1;
 }
@@ -2002,10 +2003,10 @@ select {
   position: absolute;
   left: 0;
   right: 0;
-  bottom: 1px;
+  bottom: 2px;
   display: flex;
   justify-content: center;
-  gap: 2px;
+  gap: 3px;
 }
 
 .year-mark {
@@ -2016,8 +2017,8 @@ select {
 }
 
 .year-marks .year-mark {
-  width: 4px;
-  height: 4px;
+  width: 5px;
+  height: 5px;
 }
 
 .year-mark.change,

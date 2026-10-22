@@ -58,7 +58,8 @@ move between views. Choose which views you want, and their order, in Settings.
   arrange one or more views (for example the map and the meeting finder) on a picture of your
   main display. It's a live preview of the real background. Drag views to move them, drag their corner to resize them, and see your
   desktop icons and the taskbar so you can arrange around them. Once a minute World Clock
-  draws that layout at your main display's resolution, without notifications, keys or controls, and sets it
+  draws that layout at your main display's resolution, without notifications, keys or controls,
+  with each view stretched to fill its spot (the Year view shows just its calendars), and sets it
   as your Windows background, so nothing runs between updates. While it's on, closing the
   window keeps World Clock running in the background (open it again from the Start menu), and
   at sign-in it starts hidden. Turning it off puts your previous background back.
