@@ -30,7 +30,8 @@ move between views. Choose which views you want, and their order, in Settings.
 - **Sky**: a card per city, coloured by its real sky right now: morning, afternoon,
   evening, twilight or night.
 - **Dial**: every city placed around one 24-hour clock face, with your time in the middle.
-- **Meet**: pick the cities in a meeting and see, hour by hour on your own day, when
+- **Meet**: pick the cities in a meeting (listed by time, by name, or in any order you drag
+  them into) and see, hour by hour on your own day, when
   everyone is working. Copy the shared slot's times to paste into an invite.
 
 ## Features
@@ -50,7 +51,7 @@ move between views. Choose which views you want, and their order, in Settings.
   - **Where it's already tomorrow**: shades the part of the world past midnight.
 - **Desktop background**: in Settings → Desktop background, turn on "Set as background" and
   arrange one or more views (for example the map and the meeting finder) on a picture of your
-  main display. Drag views to move them, drag their corner to resize them, and see your
+  main display. It's a live preview of the real background. Drag views to move them, drag their corner to resize them, and see your
   desktop icons and the taskbar so you can arrange around them. Once a minute World Clock
   draws that layout at your main display's resolution, without any notifications, and sets it
   as your Windows background, so nothing runs between updates. While it's on, closing the

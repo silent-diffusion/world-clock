@@ -1,6 +1,6 @@
 import { cityKey } from "../cities";
 import { saveSettings, type Settings } from "../settings";
-import { clockText, duration, localMinutes, startOfLocalDay, systemTimeZone, weekday } from "../time";
+import { clockText, duration, localMinutes, startOfLocalDay, systemTimeZone, utcOffsetMinutes, weekday } from "../time";
 import { escapeHtml, type Snapshot } from "./common";
 
 const root = document.getElementById("meet-view")!;
@@ -30,9 +30,70 @@ root.addEventListener("click", (event) => {
 
 root.addEventListener("change", (event) => {
   const select = event.target as HTMLSelectElement;
+  if (select.classList.contains("meet-sort-select")) {
+    // Switching to Custom keeps the order on screen as the starting point.
+    if (select.value === "custom") current.meetCities = shownOrder;
+    current.meetSort = select.value as Settings["meetSort"];
+    saveSettings(current);
+    return;
+  }
   if (!select.classList.contains("add-person") || !select.value) return;
   current.meetCities = [...current.meetCities, select.value];
   saveSettings(current);
+});
+
+// ---- Custom order: drag a row (or Alt+Up / Alt+Down on it) to move it ----
+
+/** The cities' keys in the order they're shown. */
+let shownOrder: string[] = [];
+
+function moveRow(key: string, to: number): void {
+  const order = shownOrder.filter((k) => k !== key);
+  order.splice(Math.max(0, Math.min(order.length, to)), 0, key);
+  current.meetCities = order;
+  current.meetSort = "custom";
+  saveSettings(current);
+}
+
+let draggedRow: string | null = null;
+root.addEventListener("dragstart", (event) => {
+  const row = (event.target as Element).closest<HTMLElement>(".person-row");
+  if (!row) return;
+  draggedRow = row.dataset.key!;
+  row.classList.add("dragging");
+  event.dataTransfer?.setData("text/plain", draggedRow);
+});
+root.addEventListener("dragover", (event) => {
+  const row = (event.target as Element).closest<HTMLElement>(".person-row");
+  if (!row || !draggedRow) return;
+  event.preventDefault();
+  root.querySelectorAll(".drop-before, .drop-after").forEach((el) => el.classList.remove("drop-before", "drop-after"));
+  const rect = row.getBoundingClientRect();
+  row.classList.add(event.clientY > rect.top + rect.height / 2 ? "drop-after" : "drop-before");
+});
+root.addEventListener("drop", (event) => {
+  const row = (event.target as Element).closest<HTMLElement>(".person-row");
+  if (!row || !draggedRow) return;
+  event.preventDefault();
+  const rect = row.getBoundingClientRect();
+  let to = shownOrder.indexOf(row.dataset.key!) + (event.clientY > rect.top + rect.height / 2 ? 1 : 0);
+  if (shownOrder.indexOf(draggedRow) < to) to -= 1; // removing the dragged row first shifts the rest up
+  const key = draggedRow;
+  draggedRow = null;
+  moveRow(key, to);
+});
+root.addEventListener("dragend", () => {
+  draggedRow = null;
+  root.querySelectorAll(".dragging, .drop-before, .drop-after").forEach((el) => el.classList.remove("dragging", "drop-before", "drop-after"));
+});
+root.addEventListener("keydown", (event) => {
+  const row = (event.target as Element).closest<HTMLElement>(".person-row");
+  if (!row || !event.altKey || (event.key !== "ArrowUp" && event.key !== "ArrowDown")) return;
+  event.preventDefault();
+  event.stopPropagation();
+  const key = row.dataset.key!;
+  moveRow(key, shownOrder.indexOf(key) + (event.key === "ArrowUp" ? -1 : 1));
+  root.querySelector<HTMLElement>(`.person-row[data-key="${CSS.escape(key)}"]`)?.focus({ preventScroll: true });
 });
 
 /** "9a", "3p", or "5:30p" for a local time in minutes. */
@@ -47,6 +108,19 @@ export function renderMeet(snap: Snapshot, settings: Settings): void {
   const chosen = settings.meetCities
     .map((key) => settings.cities.find((c) => cityKey(c) === key))
     .filter((c): c is NonNullable<typeof c> => Boolean(c));
+  if (settings.meetSort === "time") {
+    // Earliest local time first (west to east), like the Day view.
+    const offsets = new Map(chosen.map((c) => [c, utcOffsetMinutes(c.timeZone, snap.now)]));
+    chosen.sort((a, b) => offsets.get(a)! - offsets.get(b)! || a.lon - b.lon);
+  } else if (settings.meetSort === "name") {
+    chosen.sort((a, b) => a.name.localeCompare(b.name));
+  }
+  shownOrder = chosen.map(cityKey);
+  const sort = `<label class="sort meet-sort"><span>Sort by</span><select class="meet-sort-select" aria-label="Order of the cities">
+    ${[["time", "Time (earliest first)"], ["name", "Name (A–Z)"], ["custom", "Custom (drag rows)"]]
+      .map(([value, text]) => `<option value="${value}"${value === settings.meetSort ? " selected" : ""}>${text}</option>`)
+      .join("")}
+  </select></label>`;
   const others = settings.cities.filter((c) => !settings.meetCities.includes(cityKey(c)));
 
   const people = chosen
@@ -74,7 +148,7 @@ export function renderMeet(snap: Snapshot, settings: Settings): void {
           return `<span class="cell ${isWork ? "work" : awake ? "awake" : "asleep"}">${text}</span>`;
         })
         .join("");
-      return `<div class="meet-row person-row"><span class="meet-name"><strong>${escapeHtml(city.name)}</strong><span>Now ${escapeHtml(clockText(snap.now, city.timeZone))}</span></span>${cells}</div>`;
+      return `<div class="meet-row person-row" draggable="true" tabindex="0" data-key="${escapeHtml(cityKey(city))}" aria-label="${escapeHtml(city.name)}. Drag, or press Alt+Up or Alt+Down, to reorder."><span class="meet-name"><span class="grip" aria-hidden="true"></span><span><strong>${escapeHtml(city.name)}</strong><span>Now ${escapeHtml(clockText(snap.now, city.timeZone))}</span></span></span>${cells}</div>`;
     })
     .join("");
 
@@ -112,7 +186,7 @@ export function renderMeet(snap: Snapshot, settings: Settings): void {
     : "";
 
   root.innerHTML = `
-    <div class="meet-people"><span class="label">Meeting with</span>${people}${add}</div>
+    <div class="meet-people"><span class="label">Meeting with</span>${people}${add}${sort}</div>
     <div class="meet-grid">
       <div class="meet-row head"><span>YOUR TIME</span>${header}</div>
       ${rows}
