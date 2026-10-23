@@ -1,5 +1,5 @@
 import { cityKey, defaultLabelSide, makeCode, type City, type LabelSide } from "./cities";
-import { inTauri, loadSettings, saveSettings, VIEW_INFO, type CitySort, type MapExtras, type Settings, type ViewId } from "./settings";
+import { inTauri, loadSettings, saveSettings, THEMES, VIEW_INFO, type CitySort, type MapExtras, type Settings, type ViewId } from "./settings";
 import { showBackgroundEditor } from "./background-editor";
 import { clockText, systemTimeZone, utcOffsetMinutes } from "./time";
 
@@ -46,6 +46,7 @@ const cityCode = $<HTMLInputElement>("city-code");
 const citySide = $<HTMLSelectElement>("city-side");
 const cityPinned = $<HTMLInputElement>("city-pinned");
 const cityNote = $<HTMLInputElement>("city-note");
+const themeList = $<HTMLDivElement>("theme-list");
 
 let settings: Settings = loadSettings();
 let matches: CityRecord[] = [];
@@ -206,6 +207,24 @@ function renderWallpaper(): void {
 }
 
 wallpaperOn.addEventListener("change", () => update((s) => (s.wallpaper.on = wallpaperOn.checked), renderWallpaper));
+
+// ---- Theme ----
+
+function renderThemes(): void {
+  // Each swatch carries its own data-theme, so it shows that theme's colours whatever the current one is.
+  themeList.innerHTML = THEMES.map(
+    (t) => `<label class="row">
+      <span class="theme-swatch" data-theme="${t.id}" aria-hidden="true"><span style="background:var(--ink)"></span><span style="background:var(--day)"></span><span style="background:var(--amber)"></span></span>
+      <span class="row-text"><span class="row-title">${t.name}</span><span class="row-sub">${t.description}</span></span>
+      <input type="radio" class="theme-radio" name="theme" value="${t.id}"${t.id === settings.theme ? " checked" : ""}/>
+    </label>`,
+  ).join("");
+}
+
+themeList.addEventListener("change", (event) => {
+  // Saving puts the theme on right away (see main.ts) and redraws every view, the background included.
+  update((s) => (s.theme = (event.target as HTMLInputElement).value));
+});
 
 // ---- Cities ----
 
@@ -488,7 +507,7 @@ async function initUpdates(): Promise<void> {
 
 // ---- Menu ----
 
-type PanelId = "root" | "cities" | "city" | "views" | "extras" | "hours" | "background" | "mini" | "updates";
+type PanelId = "root" | "cities" | "city" | "views" | "extras" | "hours" | "background" | "mini" | "theme" | "updates";
 
 const PANEL_TITLES: Record<Exclude<PanelId, "city">, string> = {
   root: "Settings",
@@ -498,6 +517,7 @@ const PANEL_TITLES: Record<Exclude<PanelId, "city">, string> = {
   hours: "Working hours",
   background: "Desktop background",
   mini: "Mini mode",
+  theme: "Theme",
   updates: "Updates",
 };
 
@@ -556,6 +576,7 @@ function renderSummaries(): void {
     hours: `${timeOption(settings.workStart)} – ${timeOption(settings.workEnd)}`,
     background: settings.wallpaper.on ? `On · ${settings.wallpaper.layout.map((t) => VIEW_INFO[t.view].name).join(" + ")}` : "Off",
     mini: settings.miniPinnedOnly ? `Pinned cities only (${pinned})` : "All cities",
+    theme: THEMES.find((t) => t.id === settings.theme)?.name ?? "Midnight",
     updates: availableVersion
       ? `Version ${availableVersion} is available`
       : `${version.textContent?.replace("…", "").trim() || "Version"}${settings.autoCheckUpdates ? " · checks automatically" : ""}`,
@@ -578,6 +599,7 @@ export function refreshSettingsPage(): void {
   renderExtras();
   renderHours();
   renderWallpaper();
+  renderThemes();
   renderCities();
   showPanel("root");
 }

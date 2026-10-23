@@ -15,6 +15,22 @@ export const VIEW_INFO: Record<ViewId, { name: string; description: string }> = 
   clock: { name: "Clock", description: "Your own time and date, large, for the desktop background" },
 };
 
+/** The colour themes, in the order Settings lists them. Midnight is the default and needs no data-theme. */
+export const THEMES: { id: string; name: string; description: string }[] = [
+  { id: "midnight", name: "Midnight", description: "Deep navy with white and amber, the original look" },
+  { id: "daylight", name: "Daylight", description: "Light and bright, for daytime and sunny rooms" },
+  { id: "dusk", name: "Dusk", description: "Violet-navy, like the sky just after sunset" },
+  { id: "ember", name: "Ember", description: "Warm browns with golden daylight" },
+  { id: "ocean", name: "Ocean", description: "Deep teal with sea-green daylight" },
+  { id: "forest", name: "Forest", description: "Dark green with soft leaf-green daylight" },
+];
+
+/** Puts a theme on the whole app (and the desktop background picture, which copies it). */
+export function applyTheme(theme: string): void {
+  if (theme === "midnight" || !THEMES.some((t) => t.id === theme)) document.documentElement.removeAttribute("data-theme");
+  else document.documentElement.setAttribute("data-theme", theme);
+}
+
 export interface MapExtras {
   /** Shade the part of the world where it's already the next day. */
   dateBoundary: boolean;
@@ -62,6 +78,8 @@ export interface Settings {
   miniPinnedOnly: boolean;
   /** Use a view as the desktop background, redrawn every minute. */
   wallpaper: { on: boolean; layout: BackgroundTile[] };
+  /** Colour theme: one of THEMES. */
+  theme: string;
 }
 
 const STORAGE_KEY = "world-clock.settings";
@@ -94,6 +112,7 @@ export function defaultSettings(): Settings {
     yearMarks: { changes: true, holidays: true, gaps: true },
     miniPinnedOnly: false,
     wallpaper: { on: false, layout: [{ ...FULL_SCREEN_MAP }] },
+    theme: "midnight",
   };
 }
 
@@ -172,6 +191,7 @@ export function loadSettings(): Settings {
       yearMarks: { ...defaults.yearMarks, ...(saved.yearMarks ?? {}) },
       miniPinnedOnly: saved.miniPinnedOnly ?? defaults.miniPinnedOnly,
       wallpaper: { on: Boolean(saved.wallpaper?.on), layout: normalizeLayout(saved.wallpaper) },
+      theme: THEMES.some((t) => t.id === saved.theme) ? saved.theme! : defaults.theme,
     };
   } catch {
     return defaults;

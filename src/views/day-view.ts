@@ -77,7 +77,7 @@ export function renderDay(snap: Snapshot, settings: Settings): void {
     ${rows}
     <div class="legend">
       <span><span class="swatch" style="background:var(--day)"></span>Daylight</span>
-      <span><span class="swatch" style="background:var(--night-bar);box-shadow:inset 0 0 0 1px rgba(255,255,255,0.15)"></span>Night</span>
-      <span><span class="swatch" style="border:1.5px solid rgba(244,247,255,0.55);height:11px"></span>Working hours</span>
+      <span><span class="swatch" style="background:var(--night-bar);box-shadow:inset 0 0 0 1px color-mix(in srgb, var(--ink) 15%, transparent)"></span>Night</span>
+      <span><span class="swatch" style="border:1.5px solid color-mix(in srgb, var(--ink) 55%, transparent);height:11px"></span>Working hours</span>
     </div>`);
 }

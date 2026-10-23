@@ -97,11 +97,19 @@ export async function pictureOfLayout(layout: BackgroundTile[], screen: ScreenSi
   const width = Math.round(screen.width / zoom);
   const height = Math.round(screen.height / zoom);
 
+  // The theme's colours. Inside the picture :root is the <svg>, not <html>, so the wrapper carries the
+  // theme itself: styles.css gives any element with a data-theme attribute that theme's tokens.
+  const theme = document.documentElement.getAttribute("data-theme") ?? "midnight";
+  const tokens = getComputedStyle(document.documentElement);
+  const background = tokens.getPropertyValue("--bg").trim();
+  const text = tokens.getPropertyValue("--text").trim();
+
   const wrapper = document.createElement("div");
   wrapper.className = "wallpaper";
+  wrapper.setAttribute("data-theme", theme);
   wrapper.setAttribute(
     "style",
-    `position:relative;width:${width}px;height:${height}px;overflow:hidden;background:#0a0f1a;color:#e9eef8;` +
+    `position:relative;width:${width}px;height:${height}px;overflow:hidden;background:${background};color:${text};` +
       `font:14px/1.4 "Segoe UI Variable Text","Segoe UI",system-ui,sans-serif`,
   );
   const style = document.createElement("style");
@@ -165,7 +173,7 @@ export async function pictureOfLayout(layout: BackgroundTile[], screen: ScreenSi
   canvas.width = Math.round(screen.width * screen.scale);
   canvas.height = Math.round(screen.height * screen.scale);
   const context = canvas.getContext("2d")!;
-  context.fillStyle = "#0a0f1a";
+  context.fillStyle = background;
   context.fillRect(0, 0, canvas.width, canvas.height);
   context.drawImage(image, 0, 0, canvas.width, canvas.height);
 

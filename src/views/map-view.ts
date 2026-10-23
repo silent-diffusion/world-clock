@@ -30,21 +30,21 @@ state.dismissedAlert = localStorage.getItem(DISMISSED_KEY) ?? "";
 svg.innerHTML = `
   <defs>
     <pattern id="land-dots" width="1.8" height="1.8" patternUnits="userSpaceOnUse">
-      <circle cx="0.9" cy="0.9" r="0.42" fill="#7a92c4"/>
+      <circle cx="0.9" cy="0.9" r="0.42" fill="var(--land)"/>
     </pattern>
     <filter id="night-soft" x="-5%" y="-10%" width="110%" height="120%"><feGaussianBlur stdDeviation="2.2 1.8"/></filter>
-    <radialGradient id="sun-glow"><stop offset="0" stop-color="#ffd27a" stop-opacity="0.55"/><stop offset="1" stop-color="#ffd27a" stop-opacity="0"/></radialGradient>
+    <radialGradient id="sun-glow"><stop offset="0" stop-color="var(--sun)" stop-opacity="0.55"/><stop offset="1" stop-color="var(--sun)" stop-opacity="0"/></radialGradient>
   </defs>
   <g transform="${MAP_TRANSFORM}">
     <path d="${landPath()}" fill="url(#land-dots)" fill-rule="evenodd"/>
-    <path id="night" fill="rgba(2, 5, 12, 0.64)" filter="url(#night-soft)"/>
+    <path id="night" fill="var(--night-shade)" filter="url(#night-soft)"/>
   </g>
   <g id="date-boundary" display="none">
-    <rect id="date-shade" y="0" height="${HEIGHT}" fill="rgba(185, 166, 255, 0.1)"/>
-    <line id="date-line-mark" y1="0" y2="${HEIGHT}" stroke="rgba(185, 166, 255, 0.75)" stroke-width="1.5" stroke-dasharray="5 5" vector-effect="non-scaling-stroke"/>
+    <rect id="date-shade" y="0" height="${HEIGHT}" fill="var(--violet)" fill-opacity="0.1"/>
+    <line id="date-line-mark" y1="0" y2="${HEIGHT}" stroke="var(--violet)" stroke-opacity="0.75" stroke-width="1.5" stroke-dasharray="5 5" vector-effect="non-scaling-stroke"/>
   </g>
   <circle id="sun-halo" r="26" fill="url(#sun-glow)"/>
-  <circle id="sun-dot" r="3.5" fill="#ffd27a"/>`;
+  <circle id="sun-dot" r="3.5" fill="var(--sun)"/>`;
 
 const night = svg.querySelector("#night")!;
 const boundary = svg.querySelector("#date-boundary")!;
@@ -232,7 +232,7 @@ function renderAlert(snap: Snapshot, settings: Settings): void {
   const more = rest.map((g) => ` ${escapeHtml(list(g.names))} ${g.names.length > 1 ? "follow" : "follows"} on ${shortDate(g.change.at, g.zone)}.`).join("");
   alertBox.dataset.id = id;
   const html = `
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#b9a6ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/><path d="M12 7v5l3 2"/></svg>
+    <svg class="alert-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/><path d="M12 7v5l3 2"/></svg>
     <span class="alert-text">${lead}${more}</span>
     <button type="button" class="icon-button dismiss" aria-label="Dismiss" title="Dismiss">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
