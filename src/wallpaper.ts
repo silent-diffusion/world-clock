@@ -52,16 +52,24 @@ function yearGrid(width: number, height: number): [number, number] {
   return options.reduce((best, option) => (misfit(option) < misfit(best) ? option : best));
 }
 
+/** The app's styles as text, kept for the theme they were read under. */
+let styles: { theme: string; text: string } | null = null;
+
 function appStyles(): string {
-  return [...document.styleSheets]
-    .map((sheet) => {
-      try {
-        return [...sheet.cssRules].map((rule) => rule.cssText).join("\n");
-      } catch {
-        return ""; // a stylesheet from another origin can't be read
-      }
-    })
-    .join("\n");
+  const theme = document.documentElement.getAttribute("data-theme") ?? "";
+  if (styles?.theme !== theme) {
+    const text = [...document.styleSheets]
+      .map((sheet) => {
+        try {
+          return [...sheet.cssRules].map((rule) => rule.cssText).join("\n");
+        } catch {
+          return ""; // a stylesheet from another origin can't be read
+        }
+      })
+      .join("\n");
+    styles = { theme, text };
+  }
+  return styles.text;
 }
 
 export interface ScreenSize {
@@ -164,5 +172,6 @@ export async function pictureOfLayout(layout: BackgroundTile[], screen: ScreenSi
   const blob = await new Promise<Blob>((resolve, reject) =>
     canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("Couldn't encode the background picture"))), "image/png"),
   );
+  canvas.width = 0; // lets go of the pixels now rather than whenever the canvas is collected
   return new Uint8Array(await blob.arrayBuffer());
 }
