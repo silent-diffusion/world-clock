@@ -6,6 +6,12 @@ mod desktop_icons;
 mod update;
 mod wallpaper;
 
+/// Quits even while World Clock is the desktop background, when closing the window only hides it.
+#[tauri::command]
+fn quit(app: tauri::AppHandle) {
+    app.exit(0);
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -43,6 +49,7 @@ pub fn run() {
             }
         })
         .invoke_handler(tauri::generate_handler![
+            quit,
             update::install_update,
             wallpaper::set_wallpaper,
             wallpaper::current_wallpaper,
