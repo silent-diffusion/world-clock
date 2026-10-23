@@ -85,6 +85,10 @@ type HolidayLib = typeof import("date-holidays").default;
 let holidayLib: Promise<HolidayLib> | null = null;
 let cityData: Promise<{ city: string; lat: number; lng: number; country: string; iso2: string; province: string }[]> | null = null;
 const holidayCache = new Map<string, Map<number, Holiday[]>>();
+/** Holiday calendars by country and region, reused across cities and years: setting one up is the slow part. */
+const calendars = new Map<string, InstanceType<HolidayLib>>();
+/** One set up for no country, to look regions up with. */
+let regionLookup: InstanceType<HolidayLib> | null = null;
 
 /** A saved city's country code and region; cities saved before 1.3 are looked up by name and position. */
 async function placeOf(city: City): Promise<{ country: string; region?: string } | null> {
@@ -101,6 +105,18 @@ async function placeOf(city: City): Promise<{ country: string; region?: string }
   // Some other city in the same country: its country is right, its region may not be.
   const sameCountry = data.find((r) => r.country === city.country);
   return sameCountry ? { country: sameCountry.iso2 } : null;
+}
+
+/** The holiday calendar for a country, or for one of its regions. */
+function calendarOf(Holidays: HolidayLib, country: string, state?: string): InstanceType<HolidayLib> {
+  const key = `${country}|${state ?? ""}`;
+  let calendar = calendars.get(key);
+  if (!calendar) {
+    const options = { languages: ["en"] };
+    calendar = state ? new Holidays(country, state, options) : new Holidays(country, options);
+    calendars.set(key, calendar);
+  }
+  return calendar;
 }
 
 /** Public holidays in the given cities, by day of the year. Loads the holiday data the first time. */
@@ -121,11 +137,11 @@ export async function holidaysIn(cities: City[], year: number): Promise<Map<numb
     const place = await placeOf(city);
     if (!place) continue;
     // The region is a name ("Bern"); the holiday data wants its code ("BE").
-    const states = (new Holidays().getStates(place.country) ?? {}) as Record<string, string>;
+    regionLookup ??= new Holidays();
+    const states = (regionLookup.getStates(place.country) ?? {}) as Record<string, string>;
     const region = place.region?.toLowerCase();
     const state = region ? Object.keys(states).find((code) => states[code].toLowerCase().replace(/^(kanton|canton|state of) /, "") === region) : undefined;
-    const options = { languages: ["en"] };
-    const lookup = state ? new Holidays(place.country, state, options) : new Holidays(place.country, options);
+    const lookup = calendarOf(Holidays, place.country, state);
     for (const holiday of lookup.getHolidays(year)) {
       if (holiday.type !== "public") continue;
       const [y, m, d] = holiday.date.slice(0, 10).split("-").map(Number);

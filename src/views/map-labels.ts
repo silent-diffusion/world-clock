@@ -43,13 +43,19 @@ export function untangleLabels(pins: HTMLElement): void {
   const scale = origin.width / width || 1;
 
   pins.querySelectorAll(".leader").forEach((line) => line.remove());
-  const items = [...pins.querySelectorAll<HTMLElement>(".pin")].map((pin) => ({
-    pin,
-    chip: pin.querySelector<HTMLElement>(".chip")!,
-    x: pin.offsetLeft,
-    y: pin.offsetTop,
-    side: (SIDES.includes(pin.dataset.side as Side) ? pin.dataset.side : "right") as Side,
-  }));
+  const items = [...pins.querySelectorAll<HTMLElement>(".pin")].map((pin) => {
+    const chip = pin.querySelector<HTMLElement>(".chip")!;
+    return {
+      pin,
+      chip,
+      x: pin.offsetLeft,
+      y: pin.offsetTop,
+      // Every size is read before any label moves, so the browser lays the map out once, not once per label.
+      w: chip.offsetWidth,
+      h: chip.offsetHeight,
+      side: (SIDES.includes(pin.dataset.side as Side) ? pin.dataset.side : "right") as Side,
+    };
+  });
 
   // Everything a label must stay clear of: every dot, the date tags, and the labels already placed.
   const taken: Box[] = items.map(({ x, y }) => ({ x: x - DOT, y: y - DOT, w: DOT * 2, h: DOT * 2 }));
@@ -66,9 +72,7 @@ export function untangleLabels(pins: HTMLElement): void {
   // The selected city keeps the best spot; the rest go west to east.
   const order = [...items].sort((a, b) => Number(b.pin.classList.contains("selected")) - Number(a.pin.classList.contains("selected")) || a.x - b.x);
   for (const item of order) {
-    const { x, y, chip } = item;
-    const w = chip.offsetWidth;
-    const h = chip.offsetHeight;
+    const { x, y, w, h, chip } = item;
 
     // Its own side, then the other sides.
     let side = [item.side, ...SIDES.filter((s) => s !== item.side)].find((s) => free(place(s, x, y, w, h)));

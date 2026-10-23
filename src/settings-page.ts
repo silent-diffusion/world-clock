@@ -283,11 +283,18 @@ citySort.addEventListener("change", () => update((s) => (s.citySort = citySort.v
 
 // ---- Search ----
 
-let cityData: Promise<CityRecord[]> | undefined;
-function loadCityData(): Promise<CityRecord[]> {
+/** A city with its names already lowercased, so typing doesn't lowercase thousands of them on every key. */
+interface SearchEntry {
+  record: CityRecord;
+  city: string;
+  ascii: string;
+}
+
+let cityData: Promise<SearchEntry[]> | undefined;
+function loadCityData(): Promise<SearchEntry[]> {
   // ~7,000 cities from Natural Earth via the city-timezones package; loaded only when searching.
   cityData ??= import("city-timezones/data/cityMap.json")
-    .then((m) => m.default as CityRecord[])
+    .then((m) => (m.default as CityRecord[]).map((record) => ({ record, city: record.city.toLowerCase(), ascii: record.city_ascii.toLowerCase() })))
     .catch((error) => {
       cityData = undefined; // try again next time
       throw error;
@@ -302,7 +309,7 @@ async function runSearch(): Promise<void> {
     results.hidden = true;
     return;
   }
-  let data: CityRecord[];
+  let data: SearchEntry[];
   try {
     data = await loadCityData();
   } catch (error) {
@@ -315,8 +322,8 @@ async function runSearch(): Promise<void> {
   if (search.value.trim().toLowerCase() !== query) return; // a newer keystroke has taken over
 
   const scored = data
-    .filter((c) => c.city.toLowerCase().includes(query) || c.city_ascii.toLowerCase().includes(query))
-    .map((c) => ({ c, starts: c.city.toLowerCase().startsWith(query) || c.city_ascii.toLowerCase().startsWith(query) }));
+    .filter((e) => e.city.includes(query) || e.ascii.includes(query))
+    .map((e) => ({ c: e.record, starts: e.city.startsWith(query) || e.ascii.startsWith(query) }));
   scored.sort((a, b) => Number(b.starts) - Number(a.starts) || b.c.pop - a.c.pop);
   matches = scored.slice(0, 8).map((s) => s.c);
 

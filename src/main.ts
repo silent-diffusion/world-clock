@@ -34,7 +34,15 @@ function enabledViews(): ViewId[] {
 
 // ---- Drawing ----
 
+/** A redraw skipped while the window was hidden, to make when it's shown again. */
+let renderOwed = false;
+
 function render(): void {
+  if (document.hidden) {
+    renderOwed = true;
+    return;
+  }
+  renderOwed = false;
   const views = enabledViews();
   if (!views.includes(state.view)) state.view = "map";
   // Forget the selection if that city was removed in Settings.
@@ -118,6 +126,8 @@ let wallpaperWasOn = settings.wallpaper.on;
 /** The redraw in progress, and whether another was asked for meanwhile. */
 let wallpaperBusy: Promise<void> | null = null;
 let wallpaperPending = false;
+/** Settings changes come in bursts (typing, dragging), so the background waits for them to settle. */
+let wallpaperDelay: number | undefined;
 
 /** Draws a layout's views for right now (no selection or scrubbing), starts its picture, and puts the live views back. */
 function drawPicture(layout: BackgroundTile[], screen: ScreenSize): Promise<Uint8Array> {
@@ -129,7 +139,7 @@ function drawPicture(layout: BackgroundTile[], screen: ScreenSize): Promise<Uint
     return pictureOfLayout(layout, screen); // copies the pages before its first await
   } finally {
     Object.assign(state, live);
-    render();
+    render(); // skipped while the window is hidden, and made up for when it's shown
   }
 }
 
@@ -184,19 +194,22 @@ setPreviewRenderer(async (layout, pixelWidth) => {
 /** Reacts to the setting being turned on or off: keep running when closed, and save or restore the old background. */
 async function syncWallpaperMode(): Promise<void> {
   if (!inTauri) return;
-  const { invoke } = await import("@tauri-apps/api/core");
   const on = settings.wallpaper.on;
-  await invoke("set_keep_running", { on });
-  if (on && !wallpaperWasOn) {
-    const current = await invoke<string>("current_wallpaper").catch(() => "");
-    if (current && !/world-clock-[ab].png$/i.test(current)) localStorage.setItem(ORIGINAL_WALLPAPER_KEY, current);
-  } else if (!on && wallpaperWasOn) {
-    await wallpaperBusy; // so a redraw in progress can't land after the restore
-    const original = localStorage.getItem(ORIGINAL_WALLPAPER_KEY);
-    if (original) await invoke("restore_wallpaper", { path: original }).catch((error) => console.warn("Couldn't restore the background", error));
+  if (on !== wallpaperWasOn) {
+    const { invoke } = await import("@tauri-apps/api/core");
+    await invoke("set_keep_running", { on });
+    if (on) {
+      const current = await invoke<string>("current_wallpaper").catch(() => "");
+      if (current && !/world-clock-[ab].png$/i.test(current)) localStorage.setItem(ORIGINAL_WALLPAPER_KEY, current);
+    } else {
+      await wallpaperBusy; // so a redraw in progress can't land after the restore
+      const original = localStorage.getItem(ORIGINAL_WALLPAPER_KEY);
+      if (original) await invoke("restore_wallpaper", { path: original }).catch((error) => console.warn("Couldn't restore the background", error));
+    }
+    wallpaperWasOn = on;
   }
-  wallpaperWasOn = on;
-  updateWallpaper();
+  clearTimeout(wallpaperDelay);
+  wallpaperDelay = window.setTimeout(updateWallpaper, 500);
 }
 
 // ---- Selecting and scrubbing time ----
@@ -516,4 +529,7 @@ function tick(): void {
 }
 tick();
 setInterval(tick, 5000);
-document.addEventListener("visibilitychange", tick);
+document.addEventListener("visibilitychange", () => {
+  tick();
+  if (renderOwed) render();
+});

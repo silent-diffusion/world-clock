@@ -2,7 +2,7 @@ import { landPath } from "../map";
 import { saveSettings, type Settings } from "../settings";
 import { setState, state } from "../state";
 import { nightPath, sunTimes } from "../sun";
-import { clockText, duration, formatGap, nextClockChange, shortDate, startOfLocalDay, systemTimeZone, type ClockChange } from "../time";
+import { clockText, dateFormat, duration, formatGap, nextClockChange, shortDate, startOfLocalDay, systemTimeZone, type ClockChange } from "../time";
 import { dayMark, escapeHtml, mapX, mapY, type CityInfo, type Snapshot } from "./common";
 import { untangleLabels } from "./map-labels";
 
@@ -53,16 +53,20 @@ const sunDot = svg.querySelector("#sun-dot")!;
 
 let current: Settings;
 
-// ---- Clock-change lookups are slow-ish (an hour-by-hour scan), so keep them for an hour. ----
-const changeCache = new Map<string, { hour: number; change: ClockChange | null }>();
+// ---- Clock-change lookups scan ahead, so each zone's is kept until its answer could differ. ----
+// A lookup looks twice as far ahead as asked: a change it finds holds until it passes, and finding none
+// holds until the days asked about reach past the end of the scan.
+const changeCache = new Map<string, { until: number; change: ClockChange | null }>();
 function upcomingChange(timeZone: string, now: Date, days: number): ClockChange | null {
-  const hour = Math.floor(now.getTime() / 3_600_000);
   const key = `${timeZone}|${days}`;
-  const cached = changeCache.get(key);
-  if (cached && cached.hour === hour) return cached.change;
-  const change = nextClockChange(timeZone, now, days);
-  changeCache.set(key, { hour, change });
-  return change;
+  let cached = changeCache.get(key);
+  if (!cached || now.getTime() >= cached.until) {
+    const change = nextClockChange(timeZone, now, 2 * days);
+    cached = { until: change ? change.at.getTime() : now.getTime() + days * 86_400_000, change };
+    changeCache.set(key, cached);
+  }
+  const { change } = cached;
+  return change && change.at.getTime() <= now.getTime() + days * 86_400_000 ? change : null;
 }
 
 function changeSentence(change: ClockChange): string {
@@ -243,7 +247,7 @@ function renderDateBoundary(snap: Snapshot, settings: Settings): void {
 
   const laterNoon = new Date(Date.UTC(snap.shown.getUTCFullYear(), snap.shown.getUTCMonth(), snap.shown.getUTCDate() + (u >= 720 ? 1 : 0), 12));
   const earlierNoon = new Date(laterNoon.getTime() - 86_400_000);
-  const name = (d: Date) => d.toLocaleDateString("en-US", { weekday: "long", timeZone: "UTC" }).toUpperCase();
+  const name = (d: Date) => dateFormat("UTC", { weekday: "long" }).format(d).toUpperCase();
   const pct = ((lon + 180) / 360) * 100;
   dateTags.innerHTML = `<span class="date-tag earlier" style="left:${pct}%">${name(earlierNoon)} ←</span><span class="date-tag later" style="left:${pct}%">→ ${name(laterNoon)}</span>`;
   dateTags.hidden = false;

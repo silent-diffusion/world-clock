@@ -1,7 +1,7 @@
 import { cityKey } from "../cities";
 import { saveSettings, type Settings } from "../settings";
 import { setState, state } from "../state";
-import { duration, formatGap, fromLocalTime, localDay, localMinutes, nextClockChange, systemTimeZone } from "../time";
+import { dateFormat, duration, formatGap, fromLocalTime, localDay, localMinutes, nextClockChange, systemTimeZone } from "../time";
 import { clockChangeDays, dateOfDay, daysInYear, gapRuns, holidaysIn, type GapRun, type Holiday } from "../year";
 import { escapeHtml, type Snapshot } from "./common";
 
@@ -40,7 +40,7 @@ function yourDate(moment: Date): { year: number; day: number } {
 }
 
 const format = (year: number, day: number, options: Intl.DateTimeFormatOptions) =>
-  dateOfDay(year, day).toLocaleDateString("en-GB", { ...options, timeZone: "UTC" });
+  dateFormat("UTC", options, "en-GB").format(dateOfDay(year, day));
 const short = (year: number, day: number) => format(year, day, { weekday: "short", day: "numeric", month: "short" });
 
 function list(names: string[]): string {
@@ -63,8 +63,10 @@ function holidaysFor(year: number): Map<number, Holiday[]> | undefined {
   return found;
 }
 
-/** Everything marked in one year. */
-function yearFacts(year: number, reference: string, referenceKey: string | null) {
+/** Clock changes and gaps by year, reference and cities: one render asks for the same year several times. */
+const factsCache = new Map<string, ReturnType<typeof clockFacts>>();
+
+function clockFacts(year: number, reference: string, referenceKey: string | null) {
   const changes = new Map<number, string[]>();
   for (const city of current.cities) {
     for (const day of clockChangeDays(city.timeZone, year)) changes.set(day, [...(changes.get(day) ?? []), city.name]);
@@ -74,7 +76,20 @@ function yearFacts(year: number, reference: string, referenceKey: string | null)
     .map((city) => ({ city, runs: gapRuns(city.timeZone, reference, year) }));
   const odd = new Set<number>();
   for (const { runs } of gaps) for (const run of runs) if (run.unusual) for (let d = Math.max(0, run.from); d < run.to; d++) odd.add(d);
-  return { changes, gaps, odd, holidays: holidaysFor(year) };
+  return { changes, gaps, odd };
+}
+
+/** Everything marked in one year. */
+function yearFacts(year: number, reference: string, referenceKey: string | null) {
+  const key = `${year}|${reference}|${referenceKey}|${current.cities.map(cityKey).join(";")}`;
+  let facts = factsCache.get(key);
+  if (!facts) {
+    if (factsCache.size >= 8) factsCache.clear();
+    facts = clockFacts(year, reference, referenceKey);
+    factsCache.set(key, facts);
+  }
+  // Holidays arrive later, so they're looked up each time.
+  return { ...facts, holidays: holidaysFor(year) };
 }
 
 // ---- Interaction ----

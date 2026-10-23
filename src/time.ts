@@ -4,8 +4,21 @@ const MINUTE = 60_000;
 
 export const systemTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
+const formatters = new Map<string, Intl.DateTimeFormat>();
+
+/** A formatter made once and reused: making one takes far longer than formatting with it. */
+export function dateFormat(timeZone: string, options: Intl.DateTimeFormatOptions, locale = "en-US"): Intl.DateTimeFormat {
+  const key = `${locale}|${timeZone}|${JSON.stringify(options)}`;
+  let format = formatters.get(key);
+  if (!format) {
+    format = new Intl.DateTimeFormat(locale, { timeZone, ...options });
+    formatters.set(key, format);
+  }
+  return format;
+}
+
 function parts(date: Date, timeZone: string, options: Intl.DateTimeFormatOptions): Intl.DateTimeFormatPart[] {
-  return new Intl.DateTimeFormat("en-US", { timeZone, ...options }).formatToParts(date);
+  return dateFormat(timeZone, options).formatToParts(date);
 }
 
 function part(list: Intl.DateTimeFormatPart[], type: Intl.DateTimeFormatPartTypes): string {
@@ -20,12 +33,12 @@ export function timeParts(date: Date, timeZone: string, hour24 = false): { time:
 
 /** "5:24 PM" */
 export function clockText(date: Date, timeZone: string): string {
-  return new Intl.DateTimeFormat("en-US", { timeZone, hour: "numeric", minute: "2-digit" }).format(date);
+  return dateFormat(timeZone, { hour: "numeric", minute: "2-digit" }).format(date);
 }
 
 /** "Thu" */
 export function weekday(date: Date, timeZone: string): string {
-  return new Intl.DateTimeFormat("en-US", { timeZone, weekday: "short" }).format(date);
+  return dateFormat(timeZone, { weekday: "short" }).format(date);
 }
 
 /** "Wednesday 21 October" */
@@ -81,15 +94,18 @@ export interface ClockChange {
   toText: string;
 }
 
-/** The next daylight-saving change in a time zone within `days`, found hour by hour, then to the minute. */
+/** How far apart nextClockChange looks. No zone changes its clocks and back again within this long. */
+const CHANGE_STEP = 12 * 60 * MINUTE;
+
+/** The next daylight-saving change in a time zone within `days`, found twelve hours at a time, then to the minute. */
 export function nextClockChange(timeZone: string, from: Date, days: number): ClockChange | null {
   const fromMinute = Math.floor(from.getTime() / MINUTE) * MINUTE; // so the same change is always found at the same moment
   const start = utcOffsetMinutes(timeZone, new Date(fromMinute));
-  for (let h = 1; h <= days * 24; h++) {
-    const probe = new Date(fromMinute + h * 60 * MINUTE);
-    if (utcOffsetMinutes(timeZone, probe) === start) continue;
-    let lo = probe.getTime() - 60 * MINUTE;
-    let hi = probe.getTime();
+  const end = fromMinute + days * 24 * 60 * MINUTE;
+  for (let step = fromMinute; step < end; step += CHANGE_STEP) {
+    let lo = step;
+    let hi = Math.min(step + CHANGE_STEP, end);
+    if (utcOffsetMinutes(timeZone, new Date(hi)) === start) continue;
     while (hi - lo > MINUTE) {
       const mid = lo + Math.floor((hi - lo) / 2 / MINUTE) * MINUTE;
       if (utcOffsetMinutes(timeZone, new Date(mid)) === start) lo = mid;
