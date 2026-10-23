@@ -77,6 +77,26 @@ export function escapeHtml(text: string): string {
   return text.replace(/[<>&"']/g, (ch) => `&#${ch.charCodeAt(0)};`);
 }
 
+/**
+ * Replaces a view's markup and puts keyboard focus back on the same control: the one with the same id, or with
+ * the same data attributes (a city's data-key, a Year day's data-year and data-day). Views redraw every minute
+ * and on every scrub step, which would otherwise drop focus back to the page.
+ */
+export function replaceKeepingFocus(root: Element, html: string): void {
+  const focused = document.activeElement;
+  let selector = "";
+  if (focused && focused !== root && root.contains(focused)) {
+    selector = focused.id
+      ? `#${CSS.escape(focused.id)}`
+      : [...focused.attributes]
+          .filter((a) => a.name.startsWith("data-"))
+          .map((a) => `[${a.name}="${CSS.escape(a.value)}"]`)
+          .join("");
+  }
+  root.innerHTML = html;
+  if (selector) root.querySelector<HTMLElement | SVGElement>(selector)?.focus({ preventScroll: true });
+}
+
 /** "Thu" when a city's date differs from yours, "+1d" when scrubbing moved it to another day, else "". */
 export function dayMark(info: CityInfo, shifted: boolean): string {
   if (shifted && info.dayShift) return `${info.dayShift > 0 ? "+" : "−"}${Math.abs(info.dayShift)}d`;

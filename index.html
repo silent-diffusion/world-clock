@@ -37,7 +37,7 @@
 
     <main id="clock" class="clock">
       <div id="track" class="track">
-        <section class="page map-page" data-view="map" aria-label="Map">
+        <section id="page-map" class="page map-page" data-view="map" role="tabpanel" aria-label="Map">
           <div id="clock-alert" class="alert" role="status" hidden></div>
           <div class="map-area">
             <div id="map-box" class="map-box">
@@ -48,14 +48,14 @@
             </div>
           </div>
         </section>
-        <section class="page" data-view="day" aria-label="Day"><div id="day-view" class="day-view"></div></section>
-        <section class="page" data-view="sky" aria-label="Sky"><div id="sky-view" class="sky-view"></div></section>
-        <section class="page dial-page" data-view="dial" aria-label="Dial">
+        <section id="page-day" class="page" data-view="day" role="tabpanel" aria-label="Day"><div id="day-view" class="day-view"></div></section>
+        <section id="page-sky" class="page" data-view="sky" role="tabpanel" aria-label="Sky"><div id="sky-view" class="sky-view"></div></section>
+        <section id="page-dial" class="page dial-page" data-view="dial" role="tabpanel" aria-label="Dial">
           <svg id="dial" viewBox="0 0 1000 560" preserveAspectRatio="xMidYMid meet" role="img" aria-label="24-hour dial"></svg>
         </section>
-        <section class="page" data-view="meet" aria-label="Meet"><div id="meet-view" class="meet-view"></div></section>
-        <section class="page" data-view="year" aria-label="Year"><div id="year-view" class="year-view"></div></section>
-        <section class="page" data-view="clock" aria-label="Clock"><div id="clock-view" class="clock-view"></div></section>
+        <section id="page-meet" class="page" data-view="meet" role="tabpanel" aria-label="Meet"><div id="meet-view" class="meet-view"></div></section>
+        <section id="page-year" class="page" data-view="year" role="tabpanel" aria-label="Year"><div id="year-view" class="year-view"></div></section>
+        <section id="page-clock" class="page" data-view="clock" role="tabpanel" aria-label="Clock"><div id="clock-view" class="clock-view"></div></section>
       </div>
     </main>
 
@@ -78,9 +78,9 @@
       <div class="settings-head">
         <button type="button" id="settings-back" class="back">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
-          <span id="settings-back-label">Back to the clock</span>
+          <span id="settings-back-label">Back</span>
         </button>
-        <h1 id="settings-title">Settings</h1>
+        <h1 id="settings-title" tabindex="-1">Settings</h1>
         <span></span>
       </div>
 
@@ -125,12 +125,16 @@
             <h2 id="group-app">App</h2>
             <div class="card list">
               <label class="row">
-                <span class="row-text"><span class="row-title">Start World Clock when I sign in</span></span>
+                <span class="row-text"><span class="row-title">Start World Clock when I sign in</span><span id="autostart-status" class="row-sub" hidden></span></span>
                 <input id="autostart" type="checkbox" role="switch" class="switch" />
               </label>
             <button type="button" class="row menu-row" data-open="updates">
               <span class="row-text"><span class="row-title">Updates</span><span class="row-sub" id="sum-updates"></span></span>
               <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>
+            </button>
+            <!-- Desktop app only: with the background on, closing the window just hides it. -->
+            <button type="button" id="quit" class="row menu-row" hidden>
+              <span class="row-text"><span class="row-title">Quit World Clock</span><span class="row-sub">Stops the app, including desktop background updates</span></span>
             </button>
             </div>
           </section>
@@ -165,7 +169,7 @@
           </div>
           <div class="card list">
             <label class="row">
-              <span class="row-text"><span class="row-title">Map label</span><span class="row-sub">Up to 4 letters, shown beside the pin</span></span>
+              <span class="row-text"><span class="row-title">Short label</span><span class="row-sub">Up to 4 letters, shown beside the pin</span></span>
               <input id="city-code" class="text-input code-input" type="text" maxlength="4" />
             </label>
             <label class="row">
@@ -254,7 +258,7 @@
                 <span id="update-status" class="row-sub" role="status"></span>
               </span>
               <span class="buttons">
-                <button type="button" id="install" class="primary" hidden>Install update</button>
+                <button type="button" id="install" class="primary" hidden>Install and restart</button>
                 <button type="button" id="check-now">Check now</button>
               </span>
             </div>

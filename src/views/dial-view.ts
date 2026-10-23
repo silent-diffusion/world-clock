@@ -1,5 +1,5 @@
 import { clockText, longDate, systemTimeZone } from "../time";
-import { escapeHtml, type Snapshot } from "./common";
+import { escapeHtml, replaceKeepingFocus, type Snapshot } from "./common";
 
 const svg = document.getElementById("dial") as unknown as SVGSVGElement;
 
@@ -60,7 +60,7 @@ export function renderDial(snap: Snapshot): void {
 
   const yourTime = clockText(snap.shown, systemTimeZone);
   svg.setAttribute("aria-label", `24-hour dial. Your time is ${yourTime}.`);
-  svg.innerHTML = `
+  replaceKeepingFocus(svg, `
     <path d="M${CX - R},${CY} A${R},${R} 0 0 1 ${CX + R},${CY}" fill="none" stroke="rgba(157,188,242,0.32)" stroke-width="30"/>
     <path d="M${CX + R},${CY} A${R},${R} 0 0 1 ${CX - R},${CY}" fill="none" stroke="#19223a" stroke-width="30"/>
     ${ticks.join("")}
@@ -68,5 +68,5 @@ export function renderDial(snap: Snapshot): void {
     <text x="${CX}" y="${CY - 24}" text-anchor="middle" fill="var(--muted)" font-size="13" font-weight="600">YOUR TIME</text>
     <text x="${CX}" y="${CY + 24}" text-anchor="middle" fill="var(--pin)" font-size="46" font-weight="300" style="font-variant-numeric:tabular-nums">${escapeHtml(yourTime)}</text>
     <text x="${CX}" y="${CY + 50}" text-anchor="middle" fill="var(--muted)" font-size="12">${escapeHtml(longDate(snap.shown, systemTimeZone))}</text>
-    ${cities.join("")}`;
+    ${cities.join("")}`);
 }

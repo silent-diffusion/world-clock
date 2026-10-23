@@ -14,15 +14,27 @@ export interface UpdateInfo {
   latest: string | null;
 }
 
+/** GitHub turned the check away (403 or 429): it limits how often it answers without an account. */
+export class GitHubBusyError extends Error {}
+
+let onFound: ((latest: string | null) => void) | null = null;
+
+/** Tells Settings what each successful check found, including the scheduled ones. */
+export function whenUpdateFound(callback: (latest: string | null) => void): void {
+  onFound = callback;
+}
+
 /** Asks GitHub for the latest release. Throws when GitHub can't be reached. */
 export async function findUpdate(): Promise<UpdateInfo> {
   const current = await getVersion();
   const response = await fetch(LATEST_RELEASE_API, { headers: { Accept: "application/vnd.github+json" }, signal: AbortSignal.timeout(15_000) });
-  if (response.status === 404) return { current, latest: null }; // no releases yet
-  if (!response.ok) throw new Error(`GitHub responded ${response.status}`);
-  const release: { tag_name: string } = await response.json();
-  const latest = release.tag_name.replace(/^v/, "");
-  return { current, latest: compareVersions(latest, current) > 0 ? latest : null };
+  if (response.status === 403 || response.status === 429) throw new GitHubBusyError(`GitHub responded ${response.status}`);
+  if (!response.ok && response.status !== 404) throw new Error(`GitHub responded ${response.status}`);
+  const release: { tag_name: string } | null = response.status === 404 ? null : await response.json(); // 404: no releases yet
+  const tag = release?.tag_name.replace(/^v/, "");
+  const latest = tag && compareVersions(tag, current) > 0 ? tag : null;
+  onFound?.(latest);
+  return { current, latest };
 }
 
 export function openDownload(): Promise<void> {

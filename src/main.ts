@@ -1,7 +1,7 @@
 import { cityKey } from "./cities";
-import { inTauri, loadSettings, onSettingsChanged, VIEW_INFO, type BackgroundTile, type Settings, type ViewId } from "./settings";
+import { firstRun, inTauri, loadSettings, onSettingsChanged, VIEW_INFO, type BackgroundTile, type Settings, type ViewId } from "./settings";
 import { setPreviewRenderer } from "./background-editor";
-import { refreshSettingsPage, settingsGoBack } from "./settings-page";
+import { refreshSettingsPage, reportWallpaper, settingsGoBack } from "./settings-page";
 import { onStateChange, setState, state } from "./state";
 import { clockText, formatShift, longDate, systemTimeZone } from "./time";
 import { escapeHtml, snapshot, type Snapshot } from "./views/common";
@@ -12,7 +12,7 @@ import { renderMap } from "./views/map-view";
 import { renderMeet } from "./views/meet-view";
 import { isMini, renderMini, restoreIfTooSmall, setMini } from "./views/mini-view";
 import { renderSky } from "./views/sky-view";
-import { renderYear, yearSummary } from "./views/year-view";
+import { renderYear, resetYear, yearSummary } from "./views/year-view";
 import { browserScreen, pictureOfLayout, type ScreenSize } from "./wallpaper";
 
 const $ = (id: string) => document.getElementById(id)!;
@@ -36,6 +36,8 @@ function enabledViews(): ViewId[] {
 
 /** A redraw skipped while the window was hidden, to make when it's shown again. */
 let renderOwed = false;
+/** The badge as last drawn: it's a live region, so it's only rewritten when it changes, or it would be read out again. */
+let badgeHtml = "";
 
 function render(): void {
   if (document.hidden) {
@@ -60,6 +62,7 @@ function render(): void {
   for (const page of track.querySelectorAll<HTMLElement>(".page")) {
     const id = page.dataset.view as ViewId;
     page.hidden = !views.includes(id);
+    page.inert = id !== state.view; // the views off to the side stay out of the Tab order
     page.style.order = String(views.indexOf(id));
   }
   clock.scrollLeft = 0; // see the scroll listener below
@@ -69,7 +72,7 @@ function render(): void {
 
   // Tabs and page dots.
   $("view-tabs").innerHTML = views
-    .map((id) => `<button type="button" role="tab" data-go="${id}" aria-selected="${id === state.view}">${VIEW_INFO[id].name}</button>`)
+    .map((id) => `<button type="button" role="tab" data-go="${id}" aria-controls="page-${id}" aria-selected="${id === state.view}">${VIEW_INFO[id].name}</button>`)
     .join("");
   $("dots").innerHTML = views.map((id) => `<span class="${id === state.view ? "active" : ""}"></span>`).join("");
 
@@ -90,7 +93,8 @@ function render(): void {
     hint = "Click a city to compare from there";
   }
   badge.hidden = !main || settingsOpen;
-  badge.innerHTML = `<span class="badge-main">${escapeHtml(main)}</span><span class="badge-hint">${hint}</span>`;
+  const html = `<span class="badge-main">${escapeHtml(main)}</span><span class="badge-hint">${hint}</span>`;
+  if (html !== badgeHtml) badge.innerHTML = badgeHtml = html;
 
   $("hint").textContent =
     state.view === "year"
@@ -166,9 +170,14 @@ async function setWallpaper(): Promise<void> {
     const picture = drawPicture(settings.wallpaper.layout, screen);
     const { invoke } = await import("@tauri-apps/api/core");
     const png = await picture;
-    if (settings.wallpaper.on) await invoke("set_wallpaper", png); // unless it was turned off meanwhile
+    // Unless it was turned off meanwhile.
+    if (settings.wallpaper.on) {
+      await invoke("set_wallpaper", png);
+      reportWallpaper({ at: new Date(), error: "" });
+    }
   } catch (error) {
     console.warn("Couldn't update the desktop background", error);
+    reportWallpaper({ at: new Date(), error: error instanceof Error ? error.message : String(error) });
   }
 }
 
@@ -199,8 +208,15 @@ async function syncWallpaperMode(): Promise<void> {
     const { invoke } = await import("@tauri-apps/api/core");
     await invoke("set_keep_running", { on });
     if (on) {
-      const current = await invoke<string>("current_wallpaper").catch(() => "");
-      if (current && !/world-clock-[ab].png$/i.test(current)) localStorage.setItem(ORIGINAL_WALLPAPER_KEY, current);
+      let saved = false;
+      try {
+        const current = await invoke<string>("current_wallpaper");
+        if (current && !/world-clock-[ab].png$/i.test(current)) localStorage.setItem(ORIGINAL_WALLPAPER_KEY, current);
+        saved = Boolean(current);
+      } catch (error) {
+        console.warn("Couldn't save the current background", error);
+      }
+      reportWallpaper({ originalLost: !saved });
     } else {
       await wallpaperBusy; // so a redraw in progress can't land after the restore
       const original = localStorage.getItem(ORIGINAL_WALLPAPER_KEY);
@@ -263,9 +279,21 @@ clock.addEventListener("click", (event) => {
     toggleCity(item.dataset.key!);
     return;
   }
-  // A click on empty space returns to now.
-  if (!item && !target.closest("button, select, input, label, .details, .alert, .meet-view") && state.selectedKey) clearSelection();
+  // A click on empty space returns to now (but not inside the Meet or Year views, which are full of controls).
+  if (!item && !target.closest("button, select, input, label, .details, .alert, .meet-view, .year-view") && state.selectedKey) clearSelection();
 });
+
+/** Whether the wheel should scroll something under the pointer (a long list or calendar) rather than move time. */
+function canScroll(target: Element, deltaY: number): boolean {
+  const page = target.closest(".page");
+  if (!page) return false;
+  for (let el: Element | null = target; el; el = el === page ? null : el.parentElement) {
+    const { overflowY } = getComputedStyle(el);
+    if (overflowY !== "auto" && overflowY !== "scroll") continue;
+    if (deltaY < 0 ? el.scrollTop > 0 : el.scrollTop + el.clientHeight < el.scrollHeight - 1) return true;
+  }
+  return false;
+}
 
 let wheelDistance = 0;
 // A trackpad swipe keeps sending "momentum" wheel events after the fingers lift. One gesture moves one
@@ -294,6 +322,10 @@ clock.addEventListener(
       return;
     }
     if (!state.selectedKey) return;
+    if (canScroll(event.target as Element, event.deltaY)) {
+      wheelDistance = 0;
+      return;
+    }
     event.preventDefault();
     wheelDistance += event.deltaY * lines;
     const steps = Math.trunc(wheelDistance / 100); // one mouse-wheel notch; touchpads add up smaller moves
@@ -348,7 +380,8 @@ $("view-tabs").addEventListener("click", (event) => {
 
 document.addEventListener("keydown", (event) => {
   const target = event.target instanceof Element ? event.target : document.body;
-  const typing = Boolean(target.closest("input, select, textarea"));
+  // Switches are inputs too, but Esc and the arrow keys mean nothing to them.
+  const typing = Boolean(target.closest("input:not([type=checkbox]):not([type=radio]), select, textarea"));
   if (settingsOpen) {
     if (event.key === "Escape" && !typing && !settingsGoBack()) closeSettings();
     return;
@@ -360,11 +393,23 @@ document.addEventListener("keydown", (event) => {
     toggleCity(dialCity.dataset.key!);
     return;
   }
+  // Esc closes the map's details card even from its note, which keeps what was typed.
+  if (event.key === "Escape" && state.detailsOpen && target.closest("#details")) {
+    (target as HTMLElement).blur(); // saves the note
+    setState({ detailsOpen: false });
+    document.querySelector<HTMLElement>(`.pin[data-key="${CSS.escape(state.selectedKey ?? "")}"]`)?.focus();
+    return;
+  }
   if (typing) return;
   if (event.key === "Escape") {
-    if (state.detailsOpen) setState({ detailsOpen: false });
-    else if (state.selectedKey) clearSelection();
+    if (state.detailsOpen) {
+      setState({ detailsOpen: false });
+      return;
+    }
+    const browsing = resetYear(); // a year reached with the Year view's arrows
+    if (state.selectedKey) clearSelection();
     else if (state.offsetMinutes) setState({ offsetMinutes: 0 }); // a day picked in the Year view
+    else if (browsing) setState({});
     return;
   }
   if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
@@ -398,6 +443,10 @@ function closeSettings(): void {
   clock.hidden = false;
   footer.hidden = false;
   render();
+  // Focus was in Settings (now hidden) or nowhere: put it on the current view's tab.
+  if (document.activeElement === document.body || settingsView.contains(document.activeElement)) {
+    $("view-tabs").querySelector<HTMLElement>('[aria-selected="true"]')?.focus();
+  }
 }
 
 $("settings-button").addEventListener("click", () => (settingsOpen ? closeSettings() : openSettings()));
@@ -408,6 +457,7 @@ $("settings-back").addEventListener("click", () => {
 
 async function enterMini(): Promise<void> {
   if (settingsOpen) closeSettings();
+  clearSelection(); // the strip has no way to show a moved time, or to return to now
   await setMini(true, snapshot(settings), settings);
 }
 $("mini-button").addEventListener("click", enterMini);
@@ -419,11 +469,13 @@ $("mini-expand").addEventListener("click", async () => {
 
 // ---- Auto-hiding top bar ----
 // The window has no title bar. Ours slides down when the mouse reaches the top edge (or a keyboard user
-// tabs into it) and slides away again shortly after the mouse moves down or leaves the window.
+// tabs into it, or a finger touches the top edge) and slides away again shortly after the mouse moves
+// down or leaves the window. On the very first run it shows itself for a few seconds, so it's found.
 
 const bar = $("app-bar");
 const REVEAL_ZONE = 24; // px from the top of the window
 let hideTimer: number | undefined;
+let introducing = false;
 
 function showBar(): void {
   clearTimeout(hideTimer);
@@ -431,6 +483,7 @@ function showBar(): void {
 }
 
 function scheduleHide(): void {
+  if (introducing) return;
   clearTimeout(hideTimer);
   hideTimer = window.setTimeout(() => {
     if (!bar.matches(":hover") && !bar.querySelector(":focus-visible")) bar.classList.remove("shown");
@@ -442,9 +495,22 @@ document.addEventListener("mousemove", (event) => {
   if (event.clientY <= REVEAL_ZONE) showBar();
   else if (bar.classList.contains("shown") && event.clientY > bar.offsetHeight) scheduleHide();
 });
+document.addEventListener("pointerdown", (event) => {
+  if (isMini() || event.pointerType === "mouse") return;
+  if (event.clientY <= REVEAL_ZONE) showBar();
+  else if (bar.classList.contains("shown") && event.clientY > bar.offsetHeight) scheduleHide();
+});
 document.documentElement.addEventListener("mouseleave", scheduleHide);
 bar.addEventListener("focusin", showBar);
 bar.addEventListener("focusout", scheduleHide);
+if (firstRun) {
+  introducing = true;
+  showBar();
+  setTimeout(() => {
+    introducing = false;
+    scheduleHide();
+  }, 4000);
+}
 
 async function setUpWindowControls(): Promise<void> {
   const { getCurrentWindow } = await import("@tauri-apps/api/window");

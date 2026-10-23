@@ -21,6 +21,8 @@ const dateTags = document.getElementById("date-tags")!;
 const alertBox = document.getElementById("clock-alert")!;
 
 const ALERT_DAYS = 7;
+/** The alert as last drawn: it's a live region, so it's only rewritten when it changes, or it would be read out again. */
+let alertHtml = "";
 const DISMISSED_KEY = "world-clock.dismissed-alert";
 state.dismissedAlert = localStorage.getItem(DISMISSED_KEY) ?? "";
 
@@ -193,6 +195,15 @@ function renderDetails(info: CityInfo, snap: Snapshot): void {
   details.style.right = x > 62 ? `calc(${100 - x}% + 22px)` : "";
   details.style.top = y > 50 ? "" : `max(0px, calc(${y}% - 30px))`;
   details.style.bottom = y > 50 ? `calc(${100 - y}% - 30px)` : "";
+  // No bigger than the room left in the map area (a size container) on the sides it opens to, so in a small
+  // window the card narrows and scrolls instead of being cut off. The map is centred in that area at this size:
+  const mapWidth = "min(100cqw, 100cqh * 1000 / 405)";
+  const mapHeight = "min(100cqh, 40.5cqw)";
+  const sideMargin = `((100cqw - ${mapWidth}) / 2)`;
+  const topMargin = `((100cqh - ${mapHeight}) / 2)`;
+  const pinY = `${mapHeight} * ${(y / 100).toFixed(4)}`;
+  details.style.width = `min(280px, ${sideMargin} + ${mapWidth} * ${((x > 62 ? x : 100 - x) / 100).toFixed(4)} - 22px)`;
+  details.style.maxHeight = y > 50 ? `calc(${topMargin} + ${pinY} + 30px)` : `calc(100cqh - ${topMargin} - max(0px, ${pinY} - 30px))`;
 }
 
 function renderAlert(snap: Snapshot, settings: Settings): void {
@@ -220,12 +231,13 @@ function renderAlert(snap: Snapshot, settings: Settings): void {
   const lead = `<strong>Clocks ${changeSentence(first.change)} in ${escapeHtml(list(first.names))} on ${shortDate(first.change.at, first.zone)}</strong> (${first.change.fromText} → ${first.change.toText}).`;
   const more = rest.map((g) => ` ${escapeHtml(list(g.names))} ${g.names.length > 1 ? "follow" : "follows"} on ${shortDate(g.change.at, g.zone)}.`).join("");
   alertBox.dataset.id = id;
-  alertBox.innerHTML = `
+  const html = `
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#b9a6ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/><path d="M12 7v5l3 2"/></svg>
     <span class="alert-text">${lead}${more}</span>
     <button type="button" class="icon-button dismiss" aria-label="Dismiss" title="Dismiss">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
     </button>`;
+  if (html !== alertHtml) alertBox.innerHTML = alertHtml = html;
   alertBox.hidden = false;
 }
 

@@ -15,8 +15,9 @@ Run the installer; no administrator rights are needed. Every release is listed o
 > so Windows may show "Windows protected your PC". Click **More info → Run anyway**.
 
 World Clock opens as a clean window with no title bar. Move the mouse to the **top
-edge** to reveal a bar with the view tabs, mini mode, Settings and the minimize, maximize
-and close buttons. Drag that bar to move the window and drag the edges to resize.
+edge** (or touch it) to reveal a bar with the view tabs, mini mode, Settings and the minimize,
+maximize and close buttons; on first launch the bar shows itself for a few seconds. Drag that
+bar to move the window and drag the edges to resize.
 
 ## Views
 
@@ -32,12 +33,13 @@ move between views. Choose which views you want, and their order, in Settings.
 - **Dial**: every city placed around one 24-hour clock face, with your time in the middle.
 - **Meet**: pick the cities in a meeting (listed by time, by name, or in any order you drag
   them into) and see, hour by hour on your own day, when
-  everyone is working. Copy the shared slot's times to paste into an invite.
+  everyone is working. Copy the shared slot's times to paste into an invite (with the weekday
+  for any city where it falls on another day).
 - **Year**: a calendar of the year that marks the days your cities' clocks change, their
   public holidays, and the weeks when the gap between two of them isn't the usual one (for
   example when the US and Europe change clocks on different weekends). A strip shows each
   city's hours from you (or from the selected city) through the year. Click a day to see it
-  in every view; press Esc to come back to now.
+  in every view; press Esc to come back to now (and to this year).
 - **Clock**: your own time and date in large type, sized to whatever space it has. It's off
   in the swipe list by default and made for the desktop background, where you can place it
   on its own or over another view.
@@ -45,30 +47,36 @@ move between views. Choose which views you want, and their order, in Settings.
 ## Features
 
 - **See any moment**: click a city (on any view), then scroll or press **↑** / **↓**
-  (**Page Up** / **Page Down** for an hour) to move time in 15-minute steps. Every view
-  follows, times turn amber, a badge shows how far you've moved ("+4 hr", "−2 hr 30 min"),
+  (**Page Up** / **Page Down** for an hour) to move time in 15-minute steps. On views with a
+  long list (Day, Sky, Meet, Year) the wheel scrolls the list first and moves time once it
+  reaches the end. Every view follows (the meeting finder too), times turn amber, a badge
+  shows how far you've moved ("+4 hr", "−2 hr 30 min"),
   and cities whose date changes show "+1d" or "−1d". Press **Esc**, click the city again or
   click empty space to return to now.
 - **Map extras**, each a switch in Settings:
-  - **City details**: click a city for sunrise, sunset, golden hour, day length, its next
-    clock change and your own note.
-  - **Clock-change warnings**: a heads-up a week before any of your cities changes its
-    clocks, with the date on that city's label.
+  - **Show where it's already tomorrow**: shades the part of the world past midnight. It goes
+    by the sun's position, so it's approximate: local clocks don't follow the sun exactly.
   - **Dim cities where people are asleep** (11 PM to 7 AM local time).
   - **Times relative to the selected city**: labels show "+6h" instead of the time.
-  - **Where it's already tomorrow**: shades the part of the world past midnight.
+  - **City details on click**: sunrise, sunset, golden hour, day length, its next
+    clock change and your own note.
+  - **Warn before clocks change**: a heads-up a week before any of your cities changes its
+    clocks, with the date on that city's label.
 - **Desktop background**: in Settings → Desktop background, turn on "Set as background" and
   arrange one or more views (for example the map and the meeting finder) on a picture of your
   main display. It's a live preview of the real background. Drag views to move them, drag their corner to resize them, and see your
   desktop icons and the taskbar so you can arrange around them. Once a minute World Clock
   draws that layout at your main display's resolution, without notifications, keys or controls,
   with each view stretched to fill its spot (the Year view shows just its calendars), and sets it
-  as your Windows background, so nothing runs between updates. While it's on, closing the
-  window keeps World Clock running in the background (open it again from the Start menu), and
-  at sign-in it starts hidden. Turning it off puts your previous background back.
+  as your Windows background, a plain picture until the next minute's redraw. While it's on,
+  closing the window keeps World Clock running in the background to redraw it (open it again
+  from the Start menu, or use **Quit World Clock** in Settings to stop it), and at sign-in it
+  starts hidden. Settings shows when the background was last updated, or why it couldn't be.
+  Turning it off puts your previous background back.
 - **Mini mode**: shrink to a slim strip of times, the same height as the Windows 11
   taskbar. It opens sitting on the taskbar, stays on top of it (and every other window),
-  remembers where you drag it, and shows every city or only the ones you've pinned.
+  remembers where you drag it, and shows every city or only the ones you've pinned (every
+  city while none are pinned). Opening it returns to now.
 - **Daylight-saving aware**: times come from the IANA time zone database, so clock changes
   are handled automatically.
 - **Edit your cities**: search about 7,000 cities, add or remove them, sort them, change
@@ -79,7 +87,7 @@ move between views. Choose which views you want, and their order, in Settings.
 - **Starts when you sign in** to Windows (you can turn that off in Settings), and opening it
   again brings the existing window to the front.
 - **Updates from GitHub**: the app checks this repository's releases and installs a newer
-  version with one click.
+  version with one click on **Install and restart**.
 
 ### Ideas for later
 

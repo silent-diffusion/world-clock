@@ -1,7 +1,7 @@
 import { cityKey, defaultLabelSide, makeCode, type City, type LabelSide } from "./cities";
 import { inTauri, loadSettings, saveSettings, VIEW_INFO, type CitySort, type MapExtras, type Settings, type ViewId } from "./settings";
 import { showBackgroundEditor } from "./background-editor";
-import { clockText, utcOffsetMinutes } from "./time";
+import { clockText, systemTimeZone, utcOffsetMinutes } from "./time";
 
 interface CityRecord {
   city: string;
@@ -35,6 +35,7 @@ const cityList = $<HTMLUListElement>("city-list");
 const search = $<HTMLInputElement>("city-search");
 const results = $<HTMLUListElement>("search-results");
 const autostart = $<HTMLInputElement>("autostart");
+const autostartStatus = $<HTMLSpanElement>("autostart-status");
 const autoUpdates = $<HTMLInputElement>("auto-updates");
 const version = $<HTMLSpanElement>("version");
 const updateStatus = $<HTMLSpanElement>("update-status");
@@ -178,13 +179,29 @@ miniPinned.addEventListener("change", () => update((s) => (s.miniPinnedOnly = mi
 
 // ---- Desktop background ----
 
+/** How setting the background last went: when it last worked, why it last failed, and whether your own couldn't be saved. */
+const wallpaperReport: { at?: Date; error?: string; originalLost?: boolean } = {};
+
+/** Called by the shell after each try at setting the background, so the status line can say how it went. */
+export function reportWallpaper(report: typeof wallpaperReport): void {
+  Object.assign(wallpaperReport, report);
+  if (inTauri) wallpaperStatus.textContent = wallpaperStatusText();
+}
+
+function wallpaperStatusText(): string {
+  if (!settings.wallpaper.on) return "Your own background stays until you turn this on";
+  const { at, error, originalLost } = wallpaperReport;
+  const status = error ? `Couldn't set the background: ${error}` : at ? `Updated ${clockText(at, systemTimeZone)}` : "Updating every minute";
+  return originalLost ? `${status} · Your previous background couldn't be saved, so it can't be put back` : status;
+}
+
 function renderWallpaper(): void {
   wallpaperOn.checked = settings.wallpaper.on;
   if (!inTauri) {
     wallpaperOn.disabled = true;
     wallpaperStatus.textContent = "Available in the desktop app";
   } else {
-    wallpaperStatus.textContent = settings.wallpaper.on ? "Updating every minute" : "Your own background stays until you turn this on";
+    wallpaperStatus.textContent = wallpaperStatusText();
   }
 }
 
@@ -220,7 +237,7 @@ function renderCities(): void {
       const city = settings.cities[i];
       const where = [city.country, city.timeZone.replace(/_/g, " ")].filter(Boolean).join(" · ");
       const star = city.pinned
-        ? `<svg class="pinned" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-label="Pinned"><path d="M12 2l3 6.5 7 .8-5.2 4.8 1.5 7L12 17.6 5.7 21.1l1.5-7L2 9.3l7-.8z"/></svg>`
+        ? `<svg class="pinned" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" role="img" aria-label="Pinned"><path d="M12 2l3 6.5 7 .8-5.2 4.8 1.5 7L12 17.6 5.7 21.1l1.5-7L2 9.3l7-.8z"/></svg>`
         : "";
       return `<li><button type="button" class="row menu-row city-row" data-index="${i}">
         <span class="code-badge">${escapeHtml(city.code)}</span>
@@ -252,6 +269,7 @@ function openCity(index: number): void {
   cityPinned.checked = Boolean(city.pinned);
   cityNote.value = city.note ?? "";
   showPanel("city", city.name);
+  focusTitle();
 }
 
 function editCity(change: (city: City) => void): void {
@@ -386,16 +404,35 @@ async function initAutostart(): Promise<void> {
   const { isEnabled, enable, disable } = await import("@tauri-apps/plugin-autostart");
   autostart.checked = await isEnabled();
   autostart.addEventListener("change", async () => {
+    autostartStatus.hidden = true;
     try {
       await (autostart.checked ? enable() : disable());
     } catch (error) {
       console.warn("Couldn't change start-at-sign-in", error);
-      autostart.checked = await isEnabled();
+      autostart.checked = await isEnabled().catch(() => !autostart.checked);
+      autostartStatus.textContent = `Couldn't change this: ${error instanceof Error ? error.message : String(error)}`;
+      autostartStatus.hidden = false;
     }
   });
 }
 
+// ---- Quit ----
+
+/** Quits for real: with the desktop background on, closing the window only hides it. */
+function initQuit(): void {
+  if (!inTauri) return;
+  const quit = $<HTMLButtonElement>("quit");
+  quit.hidden = false;
+  quit.addEventListener("click", async () => {
+    const { invoke } = await import("@tauri-apps/api/core");
+    await invoke("quit");
+  });
+}
+
 // ---- Updates ----
+
+/** The newer version on GitHub, once a check has found one. */
+let availableVersion: string | null = null;
 
 autoUpdates.addEventListener("change", () => update((s) => (s.autoCheckUpdates = autoUpdates.checked)));
 
@@ -407,19 +444,26 @@ async function initUpdates(): Promise<void> {
     return;
   }
   const { getVersion } = await import("@tauri-apps/api/app");
-  const { findUpdate, installOrOfferDownload } = await import("./updates");
+  const { findUpdate, GitHubBusyError, installOrOfferDownload, whenUpdateFound } = await import("./updates");
   version.textContent = `Version ${await getVersion()}`;
+
+  // A newer version found by any check (including the scheduled one) is offered here and named on the main list.
+  whenUpdateFound((latest) => {
+    availableVersion = latest;
+    updateStatus.textContent = latest ? `Version ${latest} is available.` : "You have the latest version.";
+    install.hidden = !latest;
+    renderSummaries();
+  });
 
   checkNow.addEventListener("click", async () => {
     checkNow.disabled = true;
     install.hidden = true;
     updateStatus.textContent = "Checking GitHub…";
     try {
-      const { latest } = await findUpdate();
-      updateStatus.textContent = latest ? `Version ${latest} is available.` : "You have the latest version.";
-      install.hidden = !latest;
-    } catch {
-      updateStatus.textContent = "Couldn't reach GitHub. Try again later.";
+      await findUpdate(); // shown by whenUpdateFound
+    } catch (error) {
+      updateStatus.textContent = error instanceof GitHubBusyError ? "GitHub is busy right now — try again later." : "Couldn't reach GitHub. Try again later.";
+      install.hidden = !availableVersion;
     } finally {
       checkNow.disabled = false;
     }
@@ -469,7 +513,7 @@ function showPanel(panel: PanelId, title?: string): void {
   for (const el of document.querySelectorAll<HTMLElement>("#settings-view .panel")) el.hidden = el.dataset.panel !== panel;
   $("settings-title").textContent = title ?? PANEL_TITLES[panel as Exclude<PanelId, "city">];
   const parent = parentOf(panel);
-  $("settings-back-label").textContent = parent ? PANEL_TITLES[parent as Exclude<PanelId, "city">] : "Back to the clock";
+  $("settings-back-label").textContent = parent ? PANEL_TITLES[parent as Exclude<PanelId, "city">] : "Back";
   document.querySelector(".settings-body")!.scrollTop = 0;
   if (panel === "root") renderSummaries();
   if (panel === "cities") renderCities();
@@ -488,9 +532,16 @@ export function settingsGoBack(): boolean {
   return true;
 }
 
+/** Moves focus to the page title after opening a page, since the row that opened it is now hidden. */
+function focusTitle(): void {
+  $("settings-title").focus();
+}
+
 document.querySelector(".settings-body")!.addEventListener("click", (event) => {
   const row = (event.target as Element).closest<HTMLElement>("[data-open]");
-  if (row) showPanel(row.dataset.open as PanelId);
+  if (!row) return;
+  showPanel(row.dataset.open as PanelId);
+  focusTitle();
 });
 
 /** The current value of each section, shown under its name on the main list. */
@@ -505,7 +556,9 @@ function renderSummaries(): void {
     hours: `${timeOption(settings.workStart)} – ${timeOption(settings.workEnd)}`,
     background: settings.wallpaper.on ? `On · ${settings.wallpaper.layout.map((t) => VIEW_INFO[t.view].name).join(" + ")}` : "Off",
     mini: settings.miniPinnedOnly ? `Pinned cities only (${pinned})` : "All cities",
-    updates: `${version.textContent?.replace("…", "").trim() || "Version"}${settings.autoCheckUpdates ? " · checks automatically" : ""}`,
+    updates: availableVersion
+      ? `Version ${availableVersion} is available`
+      : `${version.textContent?.replace("…", "").trim() || "Version"}${settings.autoCheckUpdates ? " · checks automatically" : ""}`,
   };
   for (const [id, text] of Object.entries(summaries)) {
     const el = document.getElementById(`sum-${id}`);
@@ -531,3 +584,4 @@ export function refreshSettingsPage(): void {
 
 initAutostart();
 initUpdates();
+initQuit();
