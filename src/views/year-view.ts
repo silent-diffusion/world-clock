@@ -3,7 +3,7 @@ import { saveSettings, type Settings } from "../settings";
 import { setState, state } from "../state";
 import { dateFormat, duration, formatGap, fromLocalTime, localDay, localMinutes, nextClockChange, systemTimeZone } from "../time";
 import { clockChangeDays, dateOfDay, daysInYear, gapRuns, holidaysIn, type GapRun, type Holiday } from "../year";
-import { escapeHtml, type Snapshot } from "./common";
+import { escapeHtml, replaceKeepingFocus, type Snapshot } from "./common";
 
 // The Year view: a calendar of the year that marks the days your cities' clocks change, their public holidays,
 // and the weeks when the gap between two of them isn't the usual one. Clicking a day shows it in every view.
@@ -19,6 +19,10 @@ let viewYear: number | null = null;
 /** Holidays by year (and cities), once loaded. */
 const holidays = new Map<string, Map<number, Holiday[]>>();
 const loading = new Set<string>();
+/** When loading each year's holidays last failed; it's tried again a minute later. */
+const failed = new Map<string, number>();
+/** The year last drawn, so the calendar scrolls to this month only when today's year first comes into view. */
+let drawnYear: number | null = null;
 
 /** First day of the week in the user's locale: 0 = Sunday, 1 = Monday. */
 const weekStart = (() => {
@@ -47,20 +51,35 @@ function list(names: string[]): string {
   return names.length > 1 ? `${names.slice(0, -1).join(", ")} and ${names.at(-1)}` : (names[0] ?? "");
 }
 
+const holidayKey = (year: number) => `${year}|${current.cities.map(cityKey).join(";")}`;
+
 function holidaysFor(year: number): Map<number, Holiday[]> | undefined {
-  const key = `${year}|${current.cities.map(cityKey).join(";")}`;
+  const key = holidayKey(year);
   const found = holidays.get(key);
-  if (!found && !loading.has(key)) {
+  if (!found && !loading.has(key) && Date.now() - (failed.get(key) ?? 0) > 60_000) {
     loading.add(key);
     holidaysIn(current.cities, year)
       .then((map) => {
         holidays.set(key, map);
-        setState({}); // redraw with them
+        failed.delete(key);
       })
-      .catch((error) => console.warn("Couldn't load holidays", error))
-      .finally(() => loading.delete(key));
+      .catch((error) => {
+        console.warn("Couldn't load holidays", error);
+        failed.set(key, Date.now());
+      })
+      .finally(() => {
+        loading.delete(key);
+        setState({}); // redraw with them, or with a note that they're missing
+      });
   }
   return found;
+}
+
+/** Leaves the year browsed to with the arrows and follows the day being shown again. Returns whether it was browsing. */
+export function resetYear(): boolean {
+  const browsing = viewYear !== null;
+  viewYear = null;
+  return browsing;
 }
 
 /** Clock changes and gaps by year, reference and cities: one render asks for the same year several times. */
@@ -215,6 +234,7 @@ function panel(shown: { year: number; day: number }, today: { year: number; day:
   }
 
   if (!sections.length) sections.push(`<p class="year-note">No clock changes, holidays or unusual gaps in your cities on this day.</p>`);
+  if (current.yearMarks.holidays && failed.has(holidayKey(year))) sections.push(`<p class="year-note">Couldn't load public holidays, so none are marked.</p>`);
 
   // The next few things after the shown day.
   const upcoming: { at: number; html: string }[] = [];
@@ -287,7 +307,7 @@ export function renderYear(snap: Snapshot, settings: Settings, picture = false):
     `<button type="button" class="year-toggle" data-mark="${id}" aria-pressed="${settings.yearMarks[id]}"><span class="${swatch}" aria-hidden="true"></span>${label}</button>`;
   const awayFromToday = year !== today.year || state.offsetMinutes !== 0;
 
-  root.innerHTML = `
+  replaceKeepingFocus(root, `
     <div class="year-head">
       <button type="button" class="icon-button" data-year-step="-1" aria-label="Previous year"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></button>
       <h2 class="year-number">${year}</h2>
@@ -296,7 +316,7 @@ export function renderYear(snap: Snapshot, settings: Settings, picture = false):
       <div class="year-toggles" role="group" aria-label="What to mark">
         ${toggle("changes", "Clock changes", "year-mark change")}
         ${toggle("holidays", "Holidays", "year-mark holiday")}
-        ${toggle("gaps", "Gaps that differ", "year-swatch-odd")}
+        ${toggle("gaps", "Unusual time gaps", "year-swatch-odd")}
       </div>
     </div>
     <div class="year-calendar">
@@ -312,7 +332,18 @@ export function renderYear(snap: Snapshot, settings: Settings, picture = false):
     <div class="year-bottom">
       ${strip(year, facts, referenceName, today, shown)}
       ${panel(shown, today, reference, referenceName, referenceKey)}
-    </div>`;
+    </div>`);
+
+  // The calendar starts at January; when this year first comes into view, bring this month into sight.
+  // (Scrolled by hand, as scrollIntoView would also slide the page sideways.)
+  if (picture || year === drawnYear || !root.clientHeight) return;
+  drawnYear = year;
+  const thisMonth = root.querySelector<HTMLElement>(".year-month.current");
+  if (!thisMonth) return;
+  const top = thisMonth.getBoundingClientRect().top - root.getBoundingClientRect().top + root.scrollTop;
+  const bottom = top + thisMonth.offsetHeight;
+  if (top < root.scrollTop) root.scrollTop = top;
+  else if (bottom > root.scrollTop + root.clientHeight) root.scrollTop = bottom - root.clientHeight;
 }
 
 /** The footer summary while the Year view is showing: what's coming up in the next six weeks. */

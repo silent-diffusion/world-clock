@@ -63,10 +63,6 @@ button {
   outline-offset: 2px;
 }
 
-.tabular {
-  font-variant-numeric: tabular-nums;
-}
-
 /* ---------- Auto-hiding top bar ---------- */
 
 .app-bar {
@@ -91,9 +87,11 @@ button {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .app-bar,
-  .track {
+  *,
+  *::before,
+  *::after {
     transition: none !important;
+    animation: none !important;
   }
 }
 
@@ -267,6 +265,17 @@ body.shifted .badge-main {
   text-overflow: ellipsis;
 }
 
+/* In a narrow window the hint would be cut short; the summary gets its room instead. */
+@media (max-width: 700px) {
+  .footer {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .footer .hint {
+    display: none;
+  }
+}
+
 .dots {
   display: flex;
   align-items: center;
@@ -344,7 +353,7 @@ body.shifted .badge-main {
 }
 
 .pin.asleep {
-  opacity: 0.45;
+  opacity: 0.6;
 }
 
 .dot {
@@ -536,6 +545,7 @@ body.shifted .badge-main {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  overflow-y: auto; /* its max-height is set beside the pin, from the room there */
 }
 
 .details-head {
@@ -911,6 +921,16 @@ body.shifted .sky-card {
   cursor: pointer;
 }
 
+/* The outline doesn't follow SVG shapes, so focus rings the dot instead. */
+#dial .dial-city:focus-visible {
+  outline: none;
+}
+
+#dial .dial-city:focus-visible circle:last-of-type {
+  stroke: var(--ink);
+  stroke-width: 2;
+}
+
 #dial .code {
   fill: var(--muted);
   font-size: 11px;
@@ -995,6 +1015,12 @@ body.shifted .sky-card {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  container-type: inline-size;
+}
+
+/* Only there for screen readers: the rows lay out as if it weren't. */
+.meet-list {
+  display: contents;
 }
 
 .meet-row {
@@ -1024,14 +1050,19 @@ body.shifted .sky-card {
 }
 
 .meet-name {
+  min-width: 0;
   display: flex;
-  flex-direction: column;
-  justify-content: center;
+  align-items: center;
+  gap: 8px;
   line-height: 1.2;
+  cursor: grab;
 }
 
 .meet-name strong {
+  overflow: hidden;
   font-size: 13px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .meet-name span {
@@ -1064,6 +1095,13 @@ body.shifted .sky-card {
   color: #8390a8;
 }
 
+/* Too narrow for a time in every hour (under about 24px each): label every third hour, like the header. */
+@container (max-width: 760px) {
+  .cell:not(:nth-child(3n + 2)) {
+    font-size: 0;
+  }
+}
+
 .overlap {
   position: absolute;
   top: 18px;
@@ -1080,7 +1118,7 @@ body.shifted .sky-card {
   width: 2px;
   margin-left: -1px;
   border-radius: 1px;
-  background: var(--amber);
+  background: var(--pin); /* amber once time has moved, like every other view */
   pointer-events: none;
 }
 
@@ -1246,6 +1284,11 @@ body.mini-mode > :not(#mini) {
   font-weight: 700;
 }
 
+/* Focus lands on the title when a page opens, only so keyboard users start there; it isn't a control. */
+.settings-head h1:focus {
+  outline: none;
+}
+
 .back {
   justify-self: start;
   height: 36px;
@@ -1279,12 +1322,6 @@ body.mini-mode > :not(#mini) {
   display: flex;
   flex-direction: column;
   gap: 10px;
-}
-
-.section-text {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
 }
 
 .settings h2 {
@@ -1412,7 +1449,7 @@ select {
   background: var(--bg);
 }
 
-.settings button:not(.back):not(.remove):not(.pin-toggle):not(.result) {
+.settings button:not(.back):not(.result):not(.menu-row) {
   height: 36px;
   padding: 0 14px;
   border-radius: 10px;
@@ -1472,29 +1509,6 @@ select {
   cursor: not-allowed;
 }
 
-.pin-toggle,
-.remove {
-  width: 36px;
-  height: 36px;
-  border: 0;
-  border-radius: 8px;
-  background: transparent;
-  color: var(--muted);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.pin-toggle[aria-pressed="true"] {
-  color: var(--amber);
-}
-
-.pin-toggle:hover,
-.remove:hover {
-  background: rgba(255, 255, 255, 0.08);
-  color: var(--ink);
-}
-
 .empty {
   padding: 16px;
   color: var(--muted);
@@ -1535,8 +1549,10 @@ select {
 }
 
 .results .where {
+  min-width: 0;
   color: var(--muted);
   font-size: 12px;
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
@@ -1556,18 +1572,8 @@ select {
   text-align: left;
 }
 
-.settings .menu-row {
-  height: auto !important;
-  padding: 10px 16px !important;
-  border: 0 !important;
-  border-radius: 0 !important;
-  background: transparent !important;
-  font-weight: 400 !important;
-  white-space: normal !important;
-}
-
 .menu-row:hover {
-  background: rgba(255, 255, 255, 0.04) !important;
+  background: rgba(255, 255, 255, 0.04);
 }
 
 .menu-row .row-sub {
@@ -1807,18 +1813,10 @@ select {
   box-shadow: 0 2px 0 var(--ink);
 }
 
-.meet-name {
-  flex-direction: row !important;
-  align-items: center;
-  justify-content: flex-start !important;
-  gap: 8px;
-  cursor: grab;
-}
-
 .meet-name > span:last-child {
+  min-width: 0;
   display: flex;
   flex-direction: column;
-  line-height: 1.2;
 }
 
 .meet-name .grip {
@@ -1987,12 +1985,12 @@ select {
 }
 
 .year-day.past {
-  color: #4f5a70;
+  color: #6f7b93;
   font-weight: 400;
 }
 
 .year-day.past.weekend:not(.shown) {
-  color: #44557a;
+  color: #6a7fa8;
 }
 
 .year-day.past .year-marks {

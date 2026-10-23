@@ -1,5 +1,5 @@
 import { formatGap } from "../time";
-import { dayMark, escapeHtml, type CityInfo, type Snapshot } from "./common";
+import { dayMark, escapeHtml, replaceKeepingFocus, type CityInfo, type Snapshot } from "./common";
 
 const root = document.getElementById("sky-view")!;
 
@@ -13,7 +13,7 @@ function sky(info: CityInfo): { id: string; label: string } {
 }
 
 export function renderSky(snap: Snapshot): void {
-  root.innerHTML = snap.byZone
+  replaceKeepingFocus(root, snap.byZone
     .map((info) => {
       const { city } = info;
       const s = sky(info);
@@ -25,5 +25,5 @@ export function renderSky(snap: Snapshot): void {
         <span class="bottom"><span class="sub">${escapeHtml(city.name)}</span><span class="sub">${gap}</span></span>
       </button>`;
     })
-    .join("");
+    .join(""));
 }

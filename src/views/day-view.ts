@@ -2,7 +2,7 @@ import type { Settings } from "../settings";
 import { state } from "../state";
 import { solarElevation, sunPosition, type SunPosition } from "../sun";
 import { localMinutes, weekday } from "../time";
-import { dayMark, escapeHtml, type Snapshot } from "./common";
+import { dayMark, escapeHtml, replaceKeepingFocus, type Snapshot } from "./common";
 
 const root = document.getElementById("day-view")!;
 const WINDOW = 24 * 60; // the bars cover 12 hours either side of now
@@ -72,12 +72,12 @@ export function renderDay(snap: Snapshot, settings: Settings): void {
     })
     .join("");
 
-  root.innerHTML = `
+  replaceKeepingFocus(root, `
     <div class="day-grid day-head"><span>CITY</span><span>TIME</span><span class="axis"><span style="left:0">−12 H</span><span style="left:50%;transform:translateX(-50%);color:var(--ink)">NOW</span><span style="right:0">+12 H</span></span></div>
     ${rows}
     <div class="legend">
       <span><span class="swatch" style="background:var(--day)"></span>Daylight</span>
       <span><span class="swatch" style="background:var(--night-bar);box-shadow:inset 0 0 0 1px rgba(255,255,255,0.15)"></span>Night</span>
       <span><span class="swatch" style="border:1.5px solid rgba(244,247,255,0.55);height:11px"></span>Working hours</span>
-    </div>`;
+    </div>`);
 }

@@ -69,6 +69,9 @@ const changes = new EventTarget();
 
 export const inTauri = "__TAURI_INTERNALS__" in window;
 
+/** Set when loading found nothing saved: the app's first run (and later ones until a setting is changed). */
+export let firstRun = false;
+
 export function defaultSettings(): Settings {
   return {
     cities: DEFAULT_CITIES.map((c) => ({ ...c })),
@@ -149,7 +152,10 @@ export function loadSettings(): Settings {
   const defaults = defaultSettings();
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "null") as Partial<Settings> | null;
-    if (!saved) return defaults;
+    if (!saved) {
+      firstRun = true;
+      return defaults;
+    }
     const cities = Array.isArray(saved.cities) ? saved.cities.map(normalizeCity).filter((c) => c !== null) : defaults.cities;
     const keys = cities.map(cityKey);
     return {
