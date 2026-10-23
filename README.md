@@ -77,12 +77,15 @@ move between views. Choose which views you want, and their order, in Settings.
   taskbar. It opens sitting on the taskbar, stays on top of it (and every other window),
   remembers where you drag it, and shows every city or only the ones you've pinned (every
   city while none are pinned). Opening it returns to now.
+- **Themes**: pick a colour theme in Settings → Theme: Midnight (the original dark navy),
+  Daylight (a light theme), Dusk, Ember, Ocean or Forest. It changes the whole app at once,
+  including mini mode and the desktop background picture.
 - **Daylight-saving aware**: times come from the IANA time zone database, so clock changes
   are handled automatically.
 - **Edit your cities**: search about 7,000 cities, add or remove them, sort them, change
   the short label and which side of the pin it sits on, pin them for mini mode, and add a note.
 - **Settings menu**: Settings opens as a short menu (Cities, Views, Map extras, Working
-  hours, Desktop background, Mini mode, Updates), each showing its current value; every
+  hours, Desktop background, Mini mode, Theme, Updates), each showing its current value; every
   city has its own page. Back or Esc goes up one level.
 - **Starts when you sign in** to Windows (you can turn that off in Settings), and opening it
   again brings the existing window to the front.
@@ -92,7 +95,6 @@ move between views. Choose which views you want, and their order, in Settings.
 ### Ideas for later
 
 - 12-hour / 24-hour toggle and seconds display
-- A light theme
 - macOS and Linux builds
 
 ## How updates work
@@ -149,6 +151,7 @@ Project layout:
 | `src/cities.ts` | The default list of cities |
 | `src/settings.ts` | Saved settings |
 | `src/settings-page.ts` | The Settings page |
+| `src/styles.css` | All the styles, with each colour theme's tokens at the top |
 | `src/updates.ts` | Checks GitHub for a newer release |
 | `src/wallpaper.ts` | Draws the background layout as a full-screen picture |
 | `src/background-editor.ts` | The drag-and-resize background designer in Settings |

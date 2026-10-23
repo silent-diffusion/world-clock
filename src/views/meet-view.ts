@@ -208,8 +208,8 @@ export function renderMeet(snap: Snapshot, settings: Settings): void {
     </div>
     <div class="legend" style="padding:0">
       <span><span class="swatch" style="background:var(--day)"></span>Working hours</span>
-      <span><span class="swatch" style="background:#26345a"></span>Awake</span>
-      <span><span class="swatch" style="background:#141b2d;box-shadow:inset 0 0 0 1px rgba(255,255,255,0.12)"></span>Asleep</span>
+      <span><span class="swatch" style="background:var(--meet-awake)"></span>Awake</span>
+      <span><span class="swatch" style="background:var(--meet-asleep);box-shadow:inset 0 0 0 1px color-mix(in srgb, var(--ink) 12%, transparent)"></span>Asleep</span>
       <span><span class="swatch" style="width:2px;height:12px;background:var(--pin)"></span>${snap.shifted ? "Time shown" : "Now"}</span>
     </div>
     <div class="meet-result">${result}</div>`);

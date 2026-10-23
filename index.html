@@ -124,6 +124,10 @@
           <section aria-labelledby="group-app">
             <h2 id="group-app">App</h2>
             <div class="card list">
+            <button type="button" class="row menu-row" data-open="theme">
+              <span class="row-text"><span class="row-title">Theme</span><span class="row-sub" id="sum-theme"></span></span>
+              <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>
+            </button>
               <label class="row">
                 <span class="row-text"><span class="row-title">Start World Clock when I sign in</span><span id="autostart-status" class="row-sub" hidden></span></span>
                 <input id="autostart" type="checkbox" role="switch" class="switch" />
@@ -244,6 +248,11 @@
               <input id="mini-pinned" type="checkbox" role="switch" class="switch" />
             </label>
           </div>
+        </div>
+
+        <div class="panel" data-panel="theme" hidden>
+          <p class="hint">Colours for the whole app, mini mode and the desktop background.</p>
+          <div id="theme-list" class="card list" role="radiogroup" aria-label="Theme"></div>
         </div>
 
         <div class="panel" data-panel="updates" hidden>

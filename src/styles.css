@@ -1,23 +1,191 @@
-/* World Clock: one dark "Night Glass" look for every view and for Settings. */
+/* World Clock: one look for every view and for Settings, in six colour themes (Settings → Theme).
+   Midnight, the default, is defined here; each other theme overrides only the tokens it changes.
+   Translucent tints are mixed from a token (color-mix with --ink, --bg or an accent), so they follow the theme.
+   Any element with a data-theme attribute takes that theme: <html> for the app, the desktop-background
+   picture's wrapper (inside the picture's SVG, :root is the <svg>, which never has one) and the swatches
+   in Settings → Theme. The base block applies to them too, so tokens built from other tokens (--pin,
+   --panel, --tag…) are worked out again from that theme's colours rather than inherited from above. */
 
-:root {
+:root,
+[data-theme] {
   color-scheme: dark;
   --bg: #0a0f1a;
-  --panel: rgba(255, 255, 255, 0.04);
-  --panel-line: rgba(255, 255, 255, 0.08);
-  --line: rgba(255, 255, 255, 0.06);
+  /* App bar, badge and the map's details card. */
+  --surface-raised: #111827;
+  --panel: color-mix(in srgb, var(--ink) 4%, transparent);
+  --panel-line: color-mix(in srgb, var(--ink) 8%, transparent);
+  --line: color-mix(in srgb, var(--ink) 6%, transparent);
+  --shadow: #000000;
   --text: #e9eef8;
   --ink: #f4f7ff;
   --soft: #c6d0e2;
   --muted: #8d9ab3;
+  --faint: #7d8aa3;
+  /* Days gone by in the Year view. */
+  --past: #6f7b93;
+  --past-weekend: #6a7fa8;
+  /* Text on a fill of --ink, --pin or --day. */
+  --on-accent: var(--bg);
   --amber: #ffc857;
   --violet: #b9a6ff;
   --violet-text: #e4dcff;
   --day: #9dbcf2;
   --night-bar: #19223a;
-  --tag: rgba(10, 15, 26, 0.8);
+  --danger: #ff9b91;
+  --danger-line: rgba(255, 120, 110, 0.5);
+  --danger-tint: rgba(255, 120, 110, 0.12);
+  --tag: color-mix(in srgb, var(--bg) 80%, transparent);
+  /* Map: the sun, the dotted land and the night side. */
+  --sun: #ffd27a;
+  --land: #7a92c4;
+  --night-shade: rgba(2, 5, 12, 0.64);
+  --switch-off: #2a3550;
+  --grip: #4b5870;
+  /* Meet: hours awake and asleep, and the text on a working hour (--day). */
+  --meet-awake: #26345a;
+  --meet-asleep: #141b2d;
+  --meet-asleep-text: #8390a8;
+  --meet-cell-text: #0b1830;
+  /* Sky cards, by the sky's colour right now (evening and twilight share one). */
+  --sky-morning-bg: #bcd6f5;
+  --sky-morning-fg: #0b2240;
+  --sky-afternoon-bg: #f2d49a;
+  --sky-afternoon-fg: #3a2600;
+  --sky-evening-bg: #5b4685;
+  --sky-evening-fg: #f7f2ff;
+  --sky-night-bg: #1c2747;
+  --sky-night-fg: #e9eeff;
+  /* Year view: a holiday's and a clock change's dot on today's (--ink) square. */
+  --today-holiday: #3b5a94;
+  --today-change: #6b55c9;
   /* Pin colour: white for now, amber while showing another time. */
   --pin: var(--ink);
+}
+
+[data-theme="daylight"] {
+  color-scheme: light;
+  --bg: #f3f5fa;
+  --surface-raised: #ffffff;
+  --panel: #ffffff;
+  --shadow: #3a4560;
+  --text: #1f2838;
+  --ink: #141b2a;
+  --soft: #3a4458;
+  --muted: #566074;
+  --faint: #5b6579;
+  --past: #646e82;
+  --past-weekend: #4f6690;
+  --amber: #8f5d00;
+  --violet: #6b4fd6;
+  --violet-text: #3d2a8a;
+  --day: #2f63b8;
+  --night-bar: #d6dceb;
+  --danger: #b3261e;
+  --danger-line: rgba(179, 38, 30, 0.45);
+  --danger-tint: rgba(179, 38, 30, 0.08);
+  --sun: #a86400; /* also the golden-hour text, so dark enough to read */
+  --land: #94a5c6;
+  --night-shade: rgba(30, 40, 70, 0.22);
+  --switch-off: #c3cbdb;
+  --grip: #9aa5ba;
+  --meet-awake: #c9d6ee;
+  --meet-asleep: #e4e8f1;
+  --meet-asleep-text: #566174;
+  --meet-cell-text: #ffffff;
+  --today-holiday: #9dbcf2;
+  --today-change: #c9b8ff;
+}
+
+[data-theme="dusk"] {
+  --bg: #12101f;
+  --surface-raised: #1a1730;
+  --text: #ece9f8;
+  --ink: #f6f4ff;
+  --soft: #cdc8e4;
+  --muted: #9a93b8;
+  --faint: #8a84a8;
+  --past: #827c9f;
+  --past-weekend: #7d78b0;
+  --day: #a9b4f5;
+  --night-bar: #221d3c;
+  --land: #8a80c4;
+  --night-shade: rgba(6, 3, 16, 0.64);
+  --switch-off: #332c55;
+  --grip: #5a5380;
+  --meet-awake: #2f2858;
+  --meet-asleep: #1a1630;
+  --meet-asleep-text: #8e88aa;
+  --meet-cell-text: #14102a;
+  --today-holiday: #4a4a9a;
+}
+
+[data-theme="ember"] {
+  --bg: #16100d;
+  --surface-raised: #201713;
+  --text: #f3e9e1;
+  --ink: #fff6ee;
+  --soft: #dccbbd;
+  --muted: #a8968a;
+  --faint: #9a887c;
+  --past: #8a7a6f;
+  --past-weekend: #9a8462;
+  --day: #e8b86a;
+  --night-bar: #2a1d16;
+  --land: #b08a6c;
+  --night-shade: rgba(10, 4, 2, 0.64);
+  --switch-off: #3d2c22;
+  --grip: #6a5446;
+  --meet-awake: #3d2a1e;
+  --meet-asleep: #1f1612;
+  --meet-asleep-text: #9a8678;
+  --meet-cell-text: #2a1a05;
+  --today-holiday: #8a5a20;
+}
+
+[data-theme="ocean"] {
+  --bg: #081517;
+  --surface-raised: #0e1f22;
+  --text: #e2f2f1;
+  --ink: #f0fbfa;
+  --soft: #bfd9d6;
+  --muted: #86a8a5;
+  --faint: #789a97;
+  --past: #6a8a87;
+  --past-weekend: #5f9289;
+  --day: #7fd4c1;
+  --night-bar: #13282b;
+  --land: #5fa3a0;
+  --night-shade: rgba(1, 6, 8, 0.64);
+  --switch-off: #1f3a3d;
+  --grip: #436466;
+  --meet-awake: #1b3a3e;
+  --meet-asleep: #0f2023;
+  --meet-asleep-text: #7f9e9b;
+  --meet-cell-text: #062320;
+  --today-holiday: #2c7a6d;
+}
+
+[data-theme="forest"] {
+  --bg: #0c140d;
+  --surface-raised: #131d14;
+  --text: #e6f0e3;
+  --ink: #f3fbf0;
+  --soft: #c6d8c1;
+  --muted: #8ea888;
+  --faint: #7f9a7a;
+  --past: #71896c;
+  --past-weekend: #6f9468;
+  --day: #9ccc8f;
+  --night-bar: #18261a;
+  --land: #7fa877;
+  --night-shade: rgba(2, 6, 2, 0.64);
+  --switch-off: #263a28;
+  --grip: #4c6249;
+  --meet-awake: #213824;
+  --meet-asleep: #121c13;
+  --meet-asleep-text: #869c82;
+  --meet-cell-text: #10240b;
+  --today-holiday: #3f7a35;
 }
 
 body.shifted {
@@ -76,13 +244,14 @@ button {
   gap: 12px;
   padding-left: 18px;
   border-bottom: 1px solid var(--panel-line);
-  background: #111827;
-  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.35);
+  background: var(--surface-raised);
   transform: translateY(-100%);
   transition: transform 160ms ease-out;
 }
 
+/* The shadow only while shown: on a light theme it would otherwise peek in under the top edge. */
 .app-bar.shown {
+  box-shadow: 0 4px 18px color-mix(in srgb, var(--shadow) 35%, transparent);
   transform: none;
 }
 
@@ -108,7 +277,7 @@ button {
   gap: 2px;
   padding: 3px;
   border-radius: 10px;
-  background: rgba(255, 255, 255, 0.06);
+  background: color-mix(in srgb, var(--ink) 6%, transparent);
 }
 
 .tabs button {
@@ -124,7 +293,7 @@ button {
 }
 
 .tabs button[aria-selected="true"] {
-  background: rgba(255, 255, 255, 0.14);
+  background: color-mix(in srgb, var(--ink) 14%, transparent);
   color: var(--ink);
 }
 
@@ -149,7 +318,7 @@ button {
 }
 
 .icon-button:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: color-mix(in srgb, var(--ink) 8%, transparent);
   color: var(--ink);
 }
 
@@ -171,7 +340,7 @@ button {
 }
 
 .window-controls button:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: color-mix(in srgb, var(--ink) 8%, transparent);
 }
 
 .window-controls button.close:hover {
@@ -192,8 +361,8 @@ button {
   gap: 10px;
   padding: 6px 14px;
   border-radius: 999px;
-  background: rgba(17, 24, 39, 0.92);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: color-mix(in srgb, var(--surface-raised) 92%, transparent);
+  border: 1px solid color-mix(in srgb, var(--ink) 10%, transparent);
   white-space: nowrap;
   pointer-events: none;
 }
@@ -210,7 +379,7 @@ body.shifted .badge-main {
 
 .badge-hint {
   font-size: 12px;
-  color: #aab6cc;
+  color: color-mix(in srgb, var(--soft), var(--muted));
 }
 
 /* ---------- Views and swiping ---------- */
@@ -286,7 +455,7 @@ body.shifted .badge-main {
   width: 6px;
   height: 6px;
   border-radius: 3px;
-  background: rgba(244, 247, 255, 0.25);
+  background: color-mix(in srgb, var(--ink) 25%, transparent);
   transition: width 200ms;
 }
 
@@ -374,7 +543,7 @@ body.shifted .badge-main {
 
 .dot.day {
   background: var(--pin);
-  box-shadow: 0 0 0 3px rgba(244, 247, 255, 0.16);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ink) 16%, transparent);
 }
 
 .dot.night {
@@ -383,7 +552,7 @@ body.shifted .badge-main {
 }
 
 .pin.selected .dot {
-  box-shadow: 0 0 0 6px rgba(255, 200, 87, 0.35);
+  box-shadow: 0 0 0 6px color-mix(in srgb, var(--amber) 35%, transparent);
 }
 
 /* Joins a label that had to move away from its dot (see map-labels.ts) back to it. */
@@ -393,7 +562,7 @@ body.shifted .badge-main {
   top: -0.5px;
   height: 1px;
   transform-origin: 0 50%;
-  background: rgba(244, 247, 255, 0.35);
+  background: color-mix(in srgb, var(--ink) 35%, transparent);
   pointer-events: none;
 }
 
@@ -405,7 +574,7 @@ body.shifted .badge-main {
   padding: 3px 8px 4px;
   border-radius: 8px;
   background: var(--tag);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 8%, transparent);
   white-space: nowrap;
   text-align: left;
 }
@@ -479,7 +648,7 @@ body.shifted .badge-main {
 .pin.selected .chip-time,
 .pin.selected .chip-time .mark,
 .pin.selected .chip-tag {
-  color: #0a0f1a;
+  color: var(--on-accent);
 }
 
 .date-tags {
@@ -507,7 +676,7 @@ body.shifted .badge-main {
 
 .date-tag.later {
   margin-left: 8px;
-  background: rgba(185, 166, 255, 0.22);
+  background: color-mix(in srgb, var(--violet) 22%, transparent);
   color: var(--violet-text);
 }
 
@@ -519,10 +688,15 @@ body.shifted .badge-main {
   gap: 12px;
   padding: 8px 8px 8px 14px;
   border-radius: 12px;
-  background: rgba(185, 166, 255, 0.12);
-  border: 1px solid rgba(185, 166, 255, 0.3);
+  background: color-mix(in srgb, var(--violet) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--violet) 30%, transparent);
   font-size: 13px;
   color: var(--violet-text);
+}
+
+.alert-icon {
+  flex: none;
+  color: var(--violet);
 }
 
 .alert-text {
@@ -539,9 +713,9 @@ body.shifted .badge-main {
   width: 280px;
   padding: 14px 16px 16px;
   border-radius: 14px;
-  background: #121a2b;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
+  background: var(--surface-raised);
+  border: 1px solid color-mix(in srgb, var(--ink) 10%, transparent);
+  box-shadow: 0 18px 40px color-mix(in srgb, var(--shadow) 45%, transparent);
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -600,7 +774,7 @@ body.shifted .badge-main {
 }
 
 .facts .golden {
-  color: #ffd27a;
+  color: var(--sun);
 }
 
 .details-next {
@@ -614,7 +788,7 @@ body.shifted .badge-main {
   gap: 8px;
   padding: 8px 10px;
   border-radius: 10px;
-  background: rgba(185, 166, 255, 0.12);
+  background: color-mix(in srgb, var(--violet) 12%, transparent);
   font-size: 12px;
   color: var(--violet-text);
 }
@@ -639,7 +813,7 @@ body.shifted .badge-main {
   height: 34px;
   padding: 0 10px;
   border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid color-mix(in srgb, var(--ink) 12%, transparent);
   background: var(--bg);
   font-size: 13px;
   font-weight: 400;
@@ -691,7 +865,7 @@ body.shifted .badge-main {
 }
 
 .day-row.selected {
-  background: rgba(255, 200, 87, 0.1);
+  background: color-mix(in srgb, var(--amber) 10%, transparent);
 }
 
 .city-cell {
@@ -760,7 +934,7 @@ body.shifted .badge-main {
   position: absolute;
   top: -4px;
   bottom: -4px;
-  border: 1.5px solid rgba(244, 247, 255, 0.55);
+  border: 1.5px solid color-mix(in srgb, var(--ink) 55%, transparent);
   border-radius: 7px;
 }
 
@@ -769,7 +943,7 @@ body.shifted .badge-main {
   top: -5px;
   bottom: -5px;
   width: 1px;
-  background: rgba(244, 247, 255, 0.4);
+  background: color-mix(in srgb, var(--ink) 40%, transparent);
 }
 
 .bar .midnight-label {
@@ -793,7 +967,7 @@ body.shifted .badge-main {
 }
 
 body.shifted .bar .now-line {
-  background: rgba(244, 247, 255, 0.35);
+  background: color-mix(in srgb, var(--ink) 35%, transparent);
 }
 
 .bar .shift-line {
@@ -846,7 +1020,7 @@ body.shifted .bar .now-line {
 }
 
 body.shifted .sky-card {
-  border-color: rgba(255, 200, 87, 0.45);
+  border-color: color-mix(in srgb, var(--amber) 45%, transparent);
 }
 
 .sky-card.selected {
@@ -885,24 +1059,24 @@ body.shifted .sky-card {
 }
 
 .sky-morning {
-  background: #bcd6f5;
-  color: #0b2240;
+  background: var(--sky-morning-bg);
+  color: var(--sky-morning-fg);
 }
 
 .sky-afternoon {
-  background: #f2d49a;
-  color: #3a2600;
+  background: var(--sky-afternoon-bg);
+  color: var(--sky-afternoon-fg);
 }
 
 .sky-evening,
 .sky-twilight {
-  background: #5b4685;
-  color: #f7f2ff;
+  background: var(--sky-evening-bg);
+  color: var(--sky-evening-fg);
 }
 
 .sky-night {
-  background: #1c2747;
-  color: #e9eeff;
+  background: var(--sky-night-bg);
+  color: var(--sky-night-fg);
 }
 
 /* ---------- Dial ---------- */
@@ -983,7 +1157,7 @@ body.shifted .sky-card {
   height: 30px;
   padding: 0 2px 0 12px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
+  background: color-mix(in srgb, var(--ink) 8%, transparent);
   font-size: 13px;
   font-weight: 600;
 }
@@ -1004,7 +1178,7 @@ body.shifted .sky-card {
   height: 30px;
   padding: 0 10px;
   border-radius: 999px;
-  border: 1px dashed rgba(255, 255, 255, 0.25);
+  border: 1px dashed color-mix(in srgb, var(--ink) 25%, transparent);
   background: transparent;
   color: var(--soft);
   font-size: 13px;
@@ -1082,17 +1256,17 @@ body.shifted .sky-card {
 
 .cell.work {
   background: var(--day);
-  color: #0b1830;
+  color: var(--meet-cell-text);
 }
 
 .cell.awake {
-  background: #26345a;
+  background: var(--meet-awake);
   color: var(--soft);
 }
 
 .cell.asleep {
-  background: #141b2d;
-  color: #8390a8;
+  background: var(--meet-asleep);
+  color: var(--meet-asleep-text);
 }
 
 /* Too narrow for a time in every hour (under about 24px each): label every third hour, like the header. */
@@ -1163,7 +1337,7 @@ body.shifted .sky-card {
   border: 0;
   border-radius: 10px;
   background: var(--ink);
-  color: #0a0f1a;
+  color: var(--on-accent);
   font-size: 13px;
   font-weight: 700;
 }
@@ -1185,15 +1359,15 @@ body.mini-mode > :not(#mini) {
   gap: 2px;
   padding: 3px 4px 3px 4px;
   border-radius: 8px;
-  background: rgba(10, 15, 26, 0.96);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: color-mix(in srgb, var(--bg) 96%, transparent);
+  border: 1px solid color-mix(in srgb, var(--ink) 12%, transparent);
 }
 
 .grip {
   align-self: stretch;
   width: 12px;
   flex: none;
-  background-image: radial-gradient(circle, #4b5870 1.5px, transparent 1.6px);
+  background-image: radial-gradient(circle, var(--grip) 1.5px, transparent 1.6px);
   background-size: 6px 6px;
   background-position: center;
   background-repeat: repeat-y;
@@ -1213,7 +1387,7 @@ body.mini-mode > :not(#mini) {
   gap: 0;
   line-height: 1.15;
   padding: 0 8px;
-  border-left: 1px solid rgba(255, 255, 255, 0.06);
+  border-left: 1px solid color-mix(in srgb, var(--ink) 6%, transparent);
   pointer-events: none;
 }
 
@@ -1305,7 +1479,7 @@ body.mini-mode > :not(#mini) {
 }
 
 .back:hover {
-  background: rgba(255, 255, 255, 0.06);
+  background: color-mix(in srgb, var(--ink) 6%, transparent);
 }
 
 .settings-body {
@@ -1420,7 +1594,7 @@ label.row {
   align-self: stretch;
   flex: none;
   cursor: grab;
-  background-image: radial-gradient(circle, #8d9ab3 1.6px, transparent 1.7px);
+  background-image: radial-gradient(circle, var(--muted) 1.6px, transparent 1.7px);
   background-size: 7px 7px;
   background-position: center;
   background-repeat: repeat;
@@ -1445,16 +1619,17 @@ select {
   height: 36px;
   padding: 0 10px;
   border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
+  border: 1px solid color-mix(in srgb, var(--ink) 14%, transparent);
   background: var(--bg);
 }
 
-.settings button:not(.back):not(.result):not(.menu-row) {
+/* Kept low in specificity (:where) so the .primary, .danger and .bg-remove rules below win over it. */
+.settings button:where(:not(.back, .result, .menu-row)) {
   height: 36px;
   padding: 0 14px;
   border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid color-mix(in srgb, var(--ink) 16%, transparent);
+  background: color-mix(in srgb, var(--ink) 4%, transparent);
   font-weight: 600;
   white-space: nowrap;
 }
@@ -1462,7 +1637,7 @@ select {
 .settings button.primary {
   border-color: var(--ink);
   background: var(--ink);
-  color: #0a0f1a;
+  color: var(--on-accent);
 }
 
 .buttons {
@@ -1477,7 +1652,7 @@ select {
   height: 24px;
   margin: 0;
   border-radius: 12px;
-  background: #2a3550;
+  background: var(--switch-off);
   position: relative;
   cursor: pointer;
   transition: background 150ms;
@@ -1501,7 +1676,7 @@ select {
 
 .switch:checked::before {
   transform: translateX(18px);
-  background: #0a0f1a;
+  background: var(--on-accent);
 }
 
 .switch:disabled {
@@ -1528,7 +1703,7 @@ select {
   height: 40px;
   padding: 0 12px;
   border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
+  border: 1px solid color-mix(in srgb, var(--ink) 14%, transparent);
   background: var(--bg);
 }
 
@@ -1545,7 +1720,7 @@ select {
 
 .results .result:hover,
 .results .result:focus-visible {
-  background: rgba(255, 255, 255, 0.06);
+  background: color-mix(in srgb, var(--ink) 6%, transparent);
 }
 
 .results .where {
@@ -1573,7 +1748,7 @@ select {
 }
 
 .menu-row:hover {
-  background: rgba(255, 255, 255, 0.04);
+  background: color-mix(in srgb, var(--ink) 4%, transparent);
 }
 
 .menu-row .row-sub {
@@ -1593,11 +1768,39 @@ select {
   padding: 6px 0;
   border-radius: 8px;
   background: var(--bg);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid color-mix(in srgb, var(--ink) 12%, transparent);
   font-size: 12px;
   font-weight: 800;
   letter-spacing: 0.06em;
   text-align: center;
+}
+
+/* Settings → Theme: a chip in each theme's own colours (its data-theme gives it that theme's tokens). */
+.theme-swatch {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 9px;
+  height: 30px;
+  border-radius: 8px;
+  background: var(--bg);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 18%, transparent);
+}
+
+.theme-swatch span {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+}
+
+.theme-radio {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--day);
+  cursor: pointer;
 }
 
 .pinned {
@@ -1632,13 +1835,13 @@ select {
 
 .settings button.danger {
   align-self: flex-start;
-  border-color: rgba(255, 120, 110, 0.5);
+  border-color: var(--danger-line);
   background: transparent;
-  color: #ff9b91;
+  color: var(--danger);
 }
 
 .settings button.danger:hover {
-  background: rgba(255, 120, 110, 0.12);
+  background: var(--danger-tint);
 }
 
 .section-head .hint {
@@ -1663,8 +1866,8 @@ select {
   width: 100%;
   border-radius: 10px;
   overflow: hidden;
-  background: #0a0f1a; /* the picture's own background */
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+  background: var(--bg); /* the picture's own background */
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 12%, transparent);
   touch-action: none;
   user-select: none;
 }
@@ -1684,7 +1887,7 @@ select {
 
 .bg-icon {
   position: absolute;
-  border: 1px dashed rgba(255, 255, 255, 0.35);
+  border: 1px dashed color-mix(in srgb, var(--ink) 35%, transparent);
   border-radius: 4px;
   display: flex;
   align-items: flex-end;
@@ -1707,7 +1910,7 @@ select {
 .bg-tile {
   position: absolute;
   border-radius: 6px;
-  background: rgba(157, 188, 242, 0.22);
+  background: color-mix(in srgb, var(--day) 22%, transparent);
   box-shadow: inset 0 0 0 1.5px var(--day);
   cursor: move;
   display: flex;
@@ -1719,7 +1922,7 @@ select {
 .bg-tile.has-shot {
   overflow: hidden;
   background: transparent;
-  box-shadow: inset 0 0 0 1px rgba(157, 188, 242, 0.25);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--day) 25%, transparent);
 }
 
 .bg-tile.has-shot:hover,
@@ -1755,7 +1958,7 @@ select {
   position: relative;
   padding: 2px 8px;
   border-radius: 6px;
-  background: rgba(10, 15, 26, 0.8);
+  background: color-mix(in srgb, var(--bg) 80%, transparent);
   font-size: 12px;
   font-weight: 700;
   pointer-events: none;
@@ -1772,7 +1975,7 @@ select {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(10, 15, 26, 0.8);
+  background: color-mix(in srgb, var(--bg) 80%, transparent);
 }
 
 .bg-resize {
@@ -1823,7 +2026,7 @@ select {
   align-self: stretch;
   width: 8px;
   flex: none;
-  background-image: radial-gradient(circle, #4b5870 1.4px, transparent 1.5px);
+  background-image: radial-gradient(circle, var(--grip) 1.4px, transparent 1.5px);
   background-size: 4px 5px;
   background-position: center;
   margin: 12px 0;
@@ -1872,7 +2075,7 @@ select {
   padding: 0 10px;
   border: 0;
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.06);
+  background: color-mix(in srgb, var(--ink) 6%, transparent);
   color: var(--soft);
   font: inherit;
   font-size: 11.5px;
@@ -1882,11 +2085,11 @@ select {
 }
 
 .year-toggle:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: color-mix(in srgb, var(--ink) 10%, transparent);
 }
 
 .year-toggle[aria-pressed="true"] {
-  background: rgba(157, 188, 242, 0.2);
+  background: color-mix(in srgb, var(--day) 20%, transparent);
   color: var(--ink);
 }
 
@@ -1946,7 +2149,7 @@ select {
   height: 18px;
   font-size: 11px;
   font-weight: 600;
-  color: #7d8aa3;
+  color: var(--faint);
   text-align: center;
 }
 
@@ -1972,7 +2175,7 @@ select {
 }
 
 .year-day:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: color-mix(in srgb, var(--ink) 8%, transparent);
 }
 
 .year-day:focus-visible {
@@ -1985,12 +2188,12 @@ select {
 }
 
 .year-day.past {
-  color: #6f7b93;
+  color: var(--past);
   font-weight: 400;
 }
 
 .year-day.past.weekend:not(.shown) {
-  color: #6a7fa8;
+  color: var(--past-weekend);
 }
 
 .year-day.past .year-marks {
@@ -1998,12 +2201,12 @@ select {
 }
 
 .year-day.odd {
-  background: rgba(185, 166, 255, 0.16);
+  background: color-mix(in srgb, var(--violet) 16%, transparent);
 }
 
 .year-day.today {
   background: var(--ink);
-  color: #0a0f1a;
+  color: var(--on-accent);
   font-weight: 700;
 }
 
@@ -2046,11 +2249,11 @@ select {
 }
 
 .year-day.today .year-mark.holiday {
-  background: #3b5a94;
+  background: var(--today-holiday);
 }
 
 .year-day.today .year-mark.change {
-  background: #6b55c9;
+  background: var(--today-change);
 }
 
 .year-swatch-today {
@@ -2065,7 +2268,7 @@ select {
   width: 12px;
   height: 9px;
   border-radius: 2px;
-  background: rgba(185, 166, 255, 0.4);
+  background: color-mix(in srgb, var(--violet) 40%, transparent);
 }
 
 .year-panel {
@@ -2164,7 +2367,7 @@ select {
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: #7d8aa3;
+  color: var(--faint);
 }
 
 .year-strip-row {
@@ -2196,8 +2399,8 @@ select {
   height: 13px;
   padding-left: 6px;
   border-radius: 3px;
-  background: rgba(157, 188, 242, 0.16);
-  box-shadow: inset 0 0 0 1px rgba(157, 188, 242, 0.1);
+  background: color-mix(in srgb, var(--day) 16%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--day) 10%, transparent);
   font-size: 9px;
   font-weight: 600;
   line-height: 13px;
@@ -2207,7 +2410,7 @@ select {
 }
 
 .year-seg.unusual {
-  background: rgba(185, 166, 255, 0.45);
+  background: color-mix(in srgb, var(--violet) 45%, transparent);
   box-shadow: none;
   color: var(--violet-text);
 }

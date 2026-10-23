@@ -20,7 +20,7 @@ export function renderDial(snap: Snapshot): void {
   for (let h = 0; h < 24; h++) {
     const a = point(h * 60, R - 21);
     const b = point(h * 60, R - (h % 6 === 0 ? 33 : 27));
-    ticks.push(`<line x1="${f(a.x)}" y1="${f(a.y)}" x2="${f(b.x)}" y2="${f(b.y)}" stroke="rgba(244,247,255,0.35)" stroke-width="${h % 6 === 0 ? 2 : 1}"/>`);
+    ticks.push(`<line x1="${f(a.x)}" y1="${f(a.y)}" x2="${f(b.x)}" y2="${f(b.y)}" stroke="var(--ink)" stroke-opacity="0.35" stroke-width="${h % 6 === 0 ? 2 : 1}"/>`);
   }
   const labels = (
     [
@@ -50,7 +50,7 @@ export function renderDial(snap: Snapshot): void {
     const anchor = Math.abs(label.x - CX) < 30 ? "middle" : label.x > CX ? "start" : "end";
     const pin = info.selected ? "var(--amber)" : "var(--pin)";
     return `<g class="dial-city" data-key="${escapeHtml(info.key)}" role="button" tabindex="0" aria-pressed="${info.selected}" aria-label="${escapeHtml(`${info.city.name}, ${info.clock}`)}">
-      <line x1="${f(dot.x)}" y1="${f(dot.y)}" x2="${f(lineEnd.x)}" y2="${f(lineEnd.y)}" stroke="rgba(244,247,255,0.25)"/>
+      <line x1="${f(dot.x)}" y1="${f(dot.y)}" x2="${f(lineEnd.x)}" y2="${f(lineEnd.y)}" stroke="var(--ink)" stroke-opacity="0.25"/>
       <circle cx="${f(dot.x)}" cy="${f(dot.y)}" r="${info.selected ? 9 : 7}" fill="${info.isDay ? "var(--pin)" : "var(--bg)"}" stroke="${pin}" stroke-width="2"/>
       <circle cx="${f(dot.x)}" cy="${f(dot.y)}" r="18" fill="transparent"/>
       <text class="code" x="${f(label.x)}" y="${f(label.y - 2)}" text-anchor="${anchor}">${escapeHtml(info.city.code)}</text>
@@ -61,8 +61,8 @@ export function renderDial(snap: Snapshot): void {
   const yourTime = clockText(snap.shown, systemTimeZone);
   svg.setAttribute("aria-label", `24-hour dial. Your time is ${yourTime}.`);
   replaceKeepingFocus(svg, `
-    <path d="M${CX - R},${CY} A${R},${R} 0 0 1 ${CX + R},${CY}" fill="none" stroke="rgba(157,188,242,0.32)" stroke-width="30"/>
-    <path d="M${CX + R},${CY} A${R},${R} 0 0 1 ${CX - R},${CY}" fill="none" stroke="#19223a" stroke-width="30"/>
+    <path d="M${CX - R},${CY} A${R},${R} 0 0 1 ${CX + R},${CY}" fill="none" stroke="var(--day)" stroke-opacity="0.32" stroke-width="30"/>
+    <path d="M${CX + R},${CY} A${R},${R} 0 0 1 ${CX - R},${CY}" fill="none" stroke="var(--night-bar)" stroke-width="30"/>
     ${ticks.join("")}
     ${labels.join("")}
     <text x="${CX}" y="${CY - 24}" text-anchor="middle" fill="var(--muted)" font-size="13" font-weight="600">YOUR TIME</text>

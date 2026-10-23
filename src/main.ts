@@ -1,5 +1,5 @@
 import { cityKey } from "./cities";
-import { firstRun, inTauri, loadSettings, onSettingsChanged, VIEW_INFO, type BackgroundTile, type Settings, type ViewId } from "./settings";
+import { applyTheme, firstRun, inTauri, loadSettings, onSettingsChanged, VIEW_INFO, type BackgroundTile, type Settings, type ViewId } from "./settings";
 import { setPreviewRenderer } from "./background-editor";
 import { refreshSettingsPage, reportWallpaper, settingsGoBack } from "./settings-page";
 import { onStateChange, setState, state } from "./state";
@@ -23,6 +23,7 @@ const badge = $("badge");
 const settingsView = $("settings-view");
 
 let settings: Settings = loadSettings();
+applyTheme(settings.theme); // before anything is drawn
 let settingsOpen = false;
 
 const STEP_MINUTES = 15; // 15-minute steps also land on half- and quarter-hour time zones
@@ -578,6 +579,7 @@ async function setUpDesktop(): Promise<void> {
 onStateChange(render);
 onSettingsChanged(() => {
   settings = loadSettings();
+  applyTheme(settings.theme);
   render();
   syncWallpaperMode();
 });
