@@ -110,7 +110,8 @@ async function readDesk(): Promise<void> {
     console.warn("Couldn't read the desktop layout", error);
     note.textContent = "This is how your desktop will look. Drag a view to move it and its corner to resize it. (Your desktop icons couldn't be read this time.)";
   }
-  draw();
+  if (drag) previewWaiting = true;
+  else draw();
 }
 
 function draw(): void {

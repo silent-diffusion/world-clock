@@ -55,10 +55,20 @@ export function utcOffsetMinutes(timeZone: string, date = new Date()): number {
   return match[1] === "-" ? -minutes : minutes;
 }
 
+/** The moment a local date and time (days since 1970, minutes after midnight) happens in a time zone. */
+export function fromLocalTime(day: number, minutes: number, timeZone: string): Date {
+  const wall = day * 86_400_000 + minutes * MINUTE; // as if the zone were UTC
+  const offsetAt = (t: number) => utcOffsetMinutes(timeZone, new Date(t)) * MINUTE;
+  // Guess the offset, then take it again at the guess: right even when the clocks change that day.
+  const guess = wall - offsetAt(wall);
+  const at = wall - offsetAt(guess);
+  // A time skipped when the clocks went forward is taken as the moment they did.
+  return new Date(at === wall - offsetAt(at) ? at : Math.max(guess, at));
+}
+
 /** The moment local midnight began for the local day containing `date`. */
 export function startOfLocalDay(date: Date, timeZone: string): Date {
-  const approx = new Date(date.getTime() - localMinutes(date, timeZone) * MINUTE);
-  return new Date(Math.floor(approx.getTime() / MINUTE) * MINUTE);
+  return fromLocalTime(localDay(date, timeZone), 0, timeZone);
 }
 
 export interface ClockChange {
@@ -73,9 +83,10 @@ export interface ClockChange {
 
 /** The next daylight-saving change in a time zone within `days`, found hour by hour, then to the minute. */
 export function nextClockChange(timeZone: string, from: Date, days: number): ClockChange | null {
-  const start = utcOffsetMinutes(timeZone, from);
+  const fromMinute = Math.floor(from.getTime() / MINUTE) * MINUTE; // so the same change is always found at the same moment
+  const start = utcOffsetMinutes(timeZone, new Date(fromMinute));
   for (let h = 1; h <= days * 24; h++) {
-    const probe = new Date(from.getTime() + h * 60 * MINUTE);
+    const probe = new Date(fromMinute + h * 60 * MINUTE);
     if (utcOffsetMinutes(timeZone, probe) === start) continue;
     let lo = probe.getTime() - 60 * MINUTE;
     let hi = probe.getTime();
@@ -88,7 +99,7 @@ export function nextClockChange(timeZone: string, from: Date, days: number): Clo
     const after = utcOffsetMinutes(timeZone, at);
     const delta = after - start;
     const toText = clockText(at, timeZone);
-    const fromText = clockText(new Date(at.getTime() - delta * MINUTE), timeZone);
+    const fromText = clockText(new Date(at.getTime() + start * MINUTE), "UTC"); // the moment of the change on the old clock
     return { at, delta, fromText, toText };
   }
   return null;
@@ -109,13 +120,16 @@ export function duration(minutes: number): string {
   return m ? `${h} hr ${m} min` : `${h} hr`;
 }
 
-/** "+4 hr", "−2 hr 30 min", "+45 min" */
-export function formatShift(minutes: number): string {
+/** "+4 hr", "−2 hr 30 min", "+45 min"; two days or more: "+11d", "+10d 5 hr" */
+export function formatShift(minutes: number, now = new Date()): string {
   const sign = minutes < 0 ? "−" : "+";
-  // Days picked in the Year view: "+3 days" rather than "+72 hr" (a clock change can make it 71 or 73).
-  const days = Math.abs(minutes) / 1440;
-  if (days >= 2 && Math.abs(days - Math.round(days)) <= 1 / 24) return `${sign}${Math.round(days)} days`;
-  return sign + duration(minutes);
+  if (Math.abs(minutes) < 2 * 1440) return sign + duration(minutes);
+  // Days picked in the Year view are counted on your own clock, so a clock change in between doesn't turn "+3d" into "+2d 23 hr".
+  const shown = new Date(now.getTime() + minutes * MINUTE);
+  const wall = (localDay(shown, systemTimeZone) - localDay(now, systemTimeZone)) * 1440 + localMinutes(shown, systemTimeZone) - localMinutes(now, systemTimeZone);
+  const days = Math.floor(Math.abs(wall) / 1440);
+  const rest = Math.abs(wall) % 1440;
+  return `${sign}${days}d${rest ? ` ${duration(rest)}` : ""}`;
 }
 
 /** "+6h", "−3h", "+5h 30m", "Same time" */

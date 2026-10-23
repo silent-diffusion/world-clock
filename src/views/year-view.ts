@@ -1,7 +1,7 @@
 import { cityKey } from "../cities";
 import { saveSettings, type Settings } from "../settings";
 import { setState, state } from "../state";
-import { duration, formatGap, localDay, nextClockChange, startOfLocalDay, systemTimeZone, utcOffsetMinutes } from "../time";
+import { duration, formatGap, fromLocalTime, localDay, localMinutes, nextClockChange, systemTimeZone } from "../time";
 import { clockChangeDays, dateOfDay, daysInYear, gapRuns, holidaysIn, type GapRun, type Holiday } from "../year";
 import { escapeHtml, type Snapshot } from "./common";
 
@@ -109,10 +109,9 @@ root.addEventListener("click", (event) => {
 function showDay(year: number, day: number): void {
   viewYear = null;
   const now = new Date();
-  const noon = Date.UTC(year, 0, 1 + day, 12);
-  const target = new Date(noon - utcOffsetMinutes(systemTimeZone, new Date(noon)) * 60_000);
-  const offsetMinutes = Math.round((startOfLocalDay(target, systemTimeZone).getTime() - startOfLocalDay(now, systemTimeZone).getTime()) / 60_000);
-  setState({ offsetMinutes });
+  const target = fromLocalTime(Date.UTC(year, 0, 1 + day) / DAY, localMinutes(now, systemTimeZone), systemTimeZone);
+  // The target is on the minute; rounding up drops the seconds now is past it.
+  setState({ offsetMinutes: Math.ceil((target.getTime() - now.getTime()) / 60_000) });
 }
 
 // ---- Drawing ----
@@ -257,11 +256,12 @@ function strip(year: number, facts: ReturnType<typeof yearFacts>, referenceName:
   </section>`;
 }
 
-export function renderYear(snap: Snapshot, settings: Settings): void {
+/** `picture`: drawn for the desktop background, which always shows the year being shown, not the one browsed to. */
+export function renderYear(snap: Snapshot, settings: Settings, picture = false): void {
   current = settings;
   const today = yourDate(snap.now);
   const shown = yourDate(snap.shown);
-  const year = viewYear ?? shown.year;
+  const year = (picture ? null : viewYear) ?? shown.year;
   const selected = snap.cities.find((c) => c.selected);
   const reference = selected?.city.timeZone ?? systemTimeZone;
   const referenceName = selected?.city.name ?? "your time";

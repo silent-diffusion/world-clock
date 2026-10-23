@@ -17,7 +17,7 @@ export interface UpdateInfo {
 /** Asks GitHub for the latest release. Throws when GitHub can't be reached. */
 export async function findUpdate(): Promise<UpdateInfo> {
   const current = await getVersion();
-  const response = await fetch(LATEST_RELEASE_API, { headers: { Accept: "application/vnd.github+json" } });
+  const response = await fetch(LATEST_RELEASE_API, { headers: { Accept: "application/vnd.github+json" }, signal: AbortSignal.timeout(15_000) });
   if (response.status === 404) return { current, latest: null }; // no releases yet
   if (!response.ok) throw new Error(`GitHub responded ${response.status}`);
   const release: { tag_name: string } = await response.json();
@@ -90,13 +90,18 @@ export function scheduleUpdateChecks(enabled: () => boolean): void {
   setInterval(run, DAY_MS);
 }
 
-/** Compares dotted version numbers ("0.10.0" > "0.9.2"); returns a positive number when a is newer. */
+/**
+ * Compares dotted version numbers ("0.10.0" > "0.9.2"); returns a positive number when a is newer.
+ * A pre-release ("1.5.0-rc.1") is older than the release with the same number.
+ */
 function compareVersions(a: string, b: string): number {
-  const pa = a.split(/[.-]/).map((n) => parseInt(n, 10) || 0);
-  const pb = b.split(/[.-]/).map((n) => parseInt(n, 10) || 0);
+  const [coreA, ...suffixA] = a.split("-");
+  const [coreB, ...suffixB] = b.split("-");
+  const pa = coreA.split(".").map((n) => parseInt(n, 10) || 0);
+  const pb = coreB.split(".").map((n) => parseInt(n, 10) || 0);
   for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
     const diff = (pa[i] ?? 0) - (pb[i] ?? 0);
     if (diff !== 0) return diff;
   }
-  return 0;
+  return Number(!suffixA.length) - Number(!suffixB.length);
 }
