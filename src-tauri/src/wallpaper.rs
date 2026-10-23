@@ -12,7 +12,7 @@ pub struct KeepRunning(pub AtomicBool);
 static USE_SECOND_FILE: AtomicBool = AtomicBool::new(false);
 
 #[tauri::command]
-pub fn set_wallpaper(app: AppHandle, request: tauri::ipc::Request<'_>) -> Result<(), String> {
+pub async fn set_wallpaper(app: AppHandle, request: tauri::ipc::Request<'_>) -> Result<(), String> {
     let tauri::ipc::InvokeBody::Raw(png) = request.body() else {
         return Err("Expected the wallpaper image as raw bytes.".into());
     };
@@ -26,14 +26,35 @@ pub fn set_wallpaper(app: AppHandle, request: tauri::ipc::Request<'_>) -> Result
 
 /// The wallpaper Windows is showing now, so it can be put back when the setting is turned off.
 #[tauri::command]
-pub fn current_wallpaper() -> Result<String, String> {
+pub async fn current_wallpaper() -> Result<String, String> {
     read_current()
 }
 
 /// Puts back a wallpaper (the one from before "Set as background" was turned on) and saves it.
 #[tauri::command]
-pub fn restore_wallpaper(path: String) -> Result<(), String> {
+pub async fn restore_wallpaper(path: String) -> Result<(), String> {
+    // An empty path is Windows' "no picture" and touches no file.
+    if !path.is_empty() && !is_local_image(&path) {
+        return Err("That isn't a picture on this computer.".into());
+    }
     apply(&path, true)
+}
+
+/// A picture file on a lettered drive. Network paths are refused: opening one makes Windows send the
+/// user's credentials to that server.
+fn is_local_image(path: &str) -> bool {
+    let b = path.as_bytes();
+    let on_drive = b.len() > 3 && b[0].is_ascii_alphabetic() && b[1] == b':' && matches!(b[2], b'\\' | b'/');
+    let extension = std::path::Path::new(path)
+        .extension()
+        .and_then(|e| e.to_str())
+        .map(|e| e.to_ascii_lowercase());
+    let image = matches!(
+        extension.as_deref(),
+        Some("bmp" | "png" | "jpg" | "jpeg" | "gif" | "tif" | "tiff" | "webp")
+    );
+    // symlink_metadata, so a link pointing at a network share isn't followed or accepted.
+    on_drive && image && std::fs::symlink_metadata(path).is_ok_and(|m| m.is_file())
 }
 
 #[tauri::command]
