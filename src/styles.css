@@ -494,6 +494,12 @@ body.shifted .badge-main {
   width: 100%;
   height: 100%;
   display: block;
+  /* The land, night shade and date line fade out at every edge instead of stopping in a hard rectangle.
+     A mask fades to transparent, so it suits every theme; the city labels are a separate layer and stay sharp. */
+  mask-image:
+    linear-gradient(to right, transparent, #000 6%, #000 94%, transparent),
+    linear-gradient(to bottom, transparent, #000 9%, #000 91%, transparent);
+  mask-composite: intersect;
 }
 
 .pins {
