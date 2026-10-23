@@ -89,12 +89,18 @@ const holidayCache = new Map<string, Map<number, Holiday[]>>();
 /** A saved city's country code and region; cities saved before 1.3 are looked up by name and position. */
 async function placeOf(city: City): Promise<{ country: string; region?: string } | null> {
   if (city.countryCode) return { country: city.countryCode, region: city.region };
-  cityData ??= import("city-timezones/data/cityMap.json").then((m) => m.default as never);
+  cityData ??= import("city-timezones/data/cityMap.json")
+    .then((m) => m.default as never)
+    .catch((error) => {
+      cityData = null; // try again next time
+      throw error;
+    });
   const data = await cityData;
-  const record =
-    data.find((r) => r.city === city.name && Math.abs(r.lat - city.lat) < 0.05 && Math.abs(r.lng - city.lon) < 0.05) ??
-    data.find((r) => r.country === city.country);
-  return record ? { country: record.iso2, region: record.province } : null;
+  const record = data.find((r) => r.city === city.name && Math.abs(r.lat - city.lat) < 0.05 && Math.abs(r.lng - city.lon) < 0.05);
+  if (record) return { country: record.iso2, region: record.province };
+  // Some other city in the same country: its country is right, its region may not be.
+  const sameCountry = data.find((r) => r.country === city.country);
+  return sameCountry ? { country: sameCountry.iso2 } : null;
 }
 
 /** Public holidays in the given cities, by day of the year. Loads the holiday data the first time. */
@@ -102,7 +108,12 @@ export async function holidaysIn(cities: City[], year: number): Promise<Map<numb
   const cacheKey = `${year}|${cities.map(cityKey).join(";")}`;
   const cached = holidayCache.get(cacheKey);
   if (cached) return cached;
-  holidayLib ??= import("date-holidays").then((m) => m.default);
+  holidayLib ??= import("date-holidays")
+    .then((m) => m.default)
+    .catch((error) => {
+      holidayLib = null; // try again next time
+      throw error;
+    });
   const Holidays = await holidayLib;
 
   const byDay = new Map<number, Holiday[]>();

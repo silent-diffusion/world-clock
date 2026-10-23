@@ -1,4 +1,4 @@
-import { cityKey, DEFAULT_CITIES, type City } from "./cities";
+import { cityKey, DEFAULT_CITIES, defaultLabelSide, type City, type LabelSide } from "./cities";
 
 /** How the Settings city list is ordered: as added, A–Z, or by time zone from west to east. */
 export type CitySort = "added" | "name" | "timezone";
@@ -96,10 +96,8 @@ export function defaultSettings(): Settings {
 
 /** Keeps every known view exactly once, in the saved order, with the map always on. */
 function normalizeViews(saved: unknown, fallback: Settings["views"]): Settings["views"] {
-  const known = Object.keys(VIEW_INFO) as ViewId[];
-  const list = Array.isArray(saved)
-    ? (saved as { id: ViewId; on: boolean }[]).filter((v, i, all) => known.includes(v?.id) && all.findIndex((w) => w.id === v.id) === i)
-    : [];
+  const valid: { id: ViewId; on: boolean }[] = Array.isArray(saved) ? saved.filter((v) => typeof v?.id === "string" && Object.hasOwn(VIEW_INFO, v.id)) : [];
+  const list = valid.filter((v, i) => valid.findIndex((w) => w.id === v.id) === i);
   for (const v of fallback) if (!list.some((w) => w.id === v.id)) list.push({ ...v });
   return list.map((v) => ({ id: v.id, on: v.id === "map" ? true : Boolean(v.on) }));
 }
@@ -112,7 +110,7 @@ function normalizeLayout(saved: unknown): BackgroundTile[] {
   const s = saved as { layout?: unknown; view?: unknown } | undefined;
   if (Array.isArray(s?.layout)) {
     const tiles = (s!.layout as Partial<BackgroundTile>[])
-      .filter((tile) => tile && typeof tile.view === "string" && tile.view in VIEW_INFO)
+      .filter((tile) => tile && typeof tile.view === "string" && Object.hasOwn(VIEW_INFO, tile.view))
       .map((tile) => {
         const w = clamp(tile.w, 0.05, 1, 1);
         const h = clamp(tile.h, 0.05, 1, 1);
@@ -120,8 +118,31 @@ function normalizeLayout(saved: unknown): BackgroundTile[] {
       });
     if (tiles.length) return tiles;
   }
-  const view = typeof s?.view === "string" && s.view in VIEW_INFO ? (s.view as ViewId) : "map";
+  const view = typeof s?.view === "string" && Object.hasOwn(VIEW_INFO, s.view) ? (s.view as ViewId) : "map";
   return [{ ...FULL_SCREEN_MAP, view }];
+}
+
+const LABEL_SIDES: LabelSide[] = ["left", "right", "above", "below"];
+
+/** A saved city, cleaned up; null when it's too damaged to use, so it's skipped instead of losing every city. */
+function normalizeCity(saved: unknown): City | null {
+  const c = saved as Record<string, unknown> | null;
+  if (!c || typeof c.name !== "string" || typeof c.code !== "string" || typeof c.timeZone !== "string") return null;
+  if (typeof c.lat !== "number" || typeof c.lon !== "number" || !Number.isFinite(c.lat) || !Number.isFinite(c.lon)) return null;
+  const text = (value: unknown) => (typeof value === "string" && value ? value : undefined);
+  return {
+    code: c.code,
+    name: c.name,
+    country: text(c.country),
+    countryCode: text(c.countryCode),
+    region: text(c.region),
+    timeZone: c.timeZone,
+    lat: c.lat,
+    lon: c.lon,
+    label: LABEL_SIDES.includes(c.label as LabelSide) ? (c.label as LabelSide) : defaultLabelSide(c.lon),
+    pinned: c.pinned === true || undefined,
+    note: text(c.note)?.slice(0, 200),
+  };
 }
 
 export function loadSettings(): Settings {
@@ -129,7 +150,7 @@ export function loadSettings(): Settings {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "null") as Partial<Settings> | null;
     if (!saved) return defaults;
-    const cities = Array.isArray(saved.cities) ? saved.cities : defaults.cities;
+    const cities = Array.isArray(saved.cities) ? saved.cities.map(normalizeCity).filter((c) => c !== null) : defaults.cities;
     const keys = cities.map(cityKey);
     return {
       cities,
@@ -153,7 +174,12 @@ export function loadSettings(): Settings {
 
 /** Saves settings and tells every view to redraw. */
 export function saveSettings(settings: Settings): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+  } catch (error) {
+    // Storage full or blocked: everything still redraws, from the settings that were saved before.
+    console.warn("Couldn't save settings", error);
+  }
   changes.dispatchEvent(new Event("change"));
 }
 

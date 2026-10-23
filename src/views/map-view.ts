@@ -148,7 +148,7 @@ function renderDetails(info: CityInfo, snap: Snapshot): void {
   const until = (d: Date | null) => (d ? (d.getTime() - snap.shown.getTime()) / 60_000 : -1);
 
   let next: string;
-  if (until(times.goldenHour) > 0) next = `Golden hour starts in ${duration(until(times.goldenHour))}, sunset in ${duration(until(times.sunset))}.`;
+  if (until(times.goldenHour) > 0) next = `Golden hour starts in ${duration(until(times.goldenHour))}${times.sunset ? `, sunset in ${duration(until(times.sunset))}` : ""}.`;
   else if (until(times.sunset) > 0) next = `Sunset in ${duration(until(times.sunset))}.`;
   else if (until(times.sunrise) > 0) next = `Sunrise in ${duration(until(times.sunrise))}.`;
   else if (times.sunrise || times.sunset) next = "The sun has set for today.";
@@ -249,7 +249,8 @@ function renderDateBoundary(snap: Snapshot, settings: Settings): void {
   dateTags.hidden = false;
 }
 
-export function renderMap(snap: Snapshot, settings: Settings): void {
+/** `picture`: drawn for the desktop background, which leaves the live details card and alert alone (the picture hides them). */
+export function renderMap(snap: Snapshot, settings: Settings, picture = false): void {
   current = settings;
   night.setAttribute("d", nightPath(snap.sun));
   const sx = ((snap.sun.lon + 180) / 360) * WIDTH;
@@ -259,7 +260,7 @@ export function renderMap(snap: Snapshot, settings: Settings): void {
     el.setAttribute("cy", sy.toFixed(1));
   }
   renderDateBoundary(snap, settings);
-  renderAlert(snap, settings);
+  if (!picture) renderAlert(snap, settings);
 
   const selected = snap.cities.find((c) => c.selected) ?? null;
   // Keep focus on a pin across redraws so keyboard scrubbing keeps working.
@@ -267,10 +268,11 @@ export function renderMap(snap: Snapshot, settings: Settings): void {
   pins.innerHTML = snap.cities.map((info) => renderPin(info, snap, settings, selected)).join("");
   untangleLabels(pins);
   if (focusedKey) pins.querySelector<HTMLElement>(`.pin[data-key="${CSS.escape(focusedKey)}"]`)?.focus({ preventScroll: true });
+  svg.setAttribute("aria-label", `World map at ${clockText(snap.shown, systemTimeZone)} your time`);
+  if (picture) return;
 
   const showDetails = Boolean(selected && state.detailsOpen && settings.extras.details);
   // Don't rebuild the card while its note is being typed in.
   if (showDetails && !details.contains(document.activeElement)) renderDetails(selected!, snap);
   details.hidden = !showDetails;
-  svg.setAttribute("aria-label", `World map at ${clockText(snap.shown, systemTimeZone)} your time`);
 }

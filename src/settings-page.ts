@@ -286,7 +286,12 @@ citySort.addEventListener("change", () => update((s) => (s.citySort = citySort.v
 let cityData: Promise<CityRecord[]> | undefined;
 function loadCityData(): Promise<CityRecord[]> {
   // ~7,000 cities from Natural Earth via the city-timezones package; loaded only when searching.
-  cityData ??= import("city-timezones/data/cityMap.json").then((m) => m.default as CityRecord[]);
+  cityData ??= import("city-timezones/data/cityMap.json")
+    .then((m) => m.default as CityRecord[])
+    .catch((error) => {
+      cityData = undefined; // try again next time
+      throw error;
+    });
   return cityData;
 }
 
@@ -297,7 +302,16 @@ async function runSearch(): Promise<void> {
     results.hidden = true;
     return;
   }
-  const data = await loadCityData();
+  let data: CityRecord[];
+  try {
+    data = await loadCityData();
+  } catch (error) {
+    console.warn("Couldn't load the city list", error);
+    matches = [];
+    results.hidden = false;
+    results.innerHTML = `<li class="empty">Couldn't load the city list. Type again to retry.</li>`;
+    return;
+  }
   if (search.value.trim().toLowerCase() !== query) return; // a newer keystroke has taken over
 
   const scored = data
@@ -407,11 +421,17 @@ async function initUpdates(): Promise<void> {
   install.addEventListener("click", async () => {
     install.disabled = true;
     checkNow.disabled = true;
+    const available = updateStatus.textContent;
     updateStatus.textContent = "Downloading the update… World Clock will restart when it's installed.";
-    await installOrOfferDownload(); // only returns if the install didn't start
-    updateStatus.textContent = "";
-    install.disabled = false;
-    checkNow.disabled = false;
+    try {
+      await installOrOfferDownload(); // only returns if the install didn't start
+    } catch (error) {
+      console.warn("Couldn't install the update", error);
+    } finally {
+      updateStatus.textContent = available;
+      install.disabled = false;
+      checkNow.disabled = false;
+    }
   });
 }
 

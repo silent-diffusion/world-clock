@@ -1,10 +1,10 @@
 import { cityKey } from "./cities";
-import { inTauri, loadSettings, onSettingsChanged, VIEW_INFO, type Settings, type ViewId } from "./settings";
+import { inTauri, loadSettings, onSettingsChanged, VIEW_INFO, type BackgroundTile, type Settings, type ViewId } from "./settings";
 import { setPreviewRenderer } from "./background-editor";
 import { refreshSettingsPage, settingsGoBack } from "./settings-page";
 import { onStateChange, setState, state } from "./state";
 import { clockText, formatShift, longDate, systemTimeZone } from "./time";
-import { snapshot, type Snapshot } from "./views/common";
+import { escapeHtml, snapshot, type Snapshot } from "./views/common";
 import { renderClock } from "./views/clock-view";
 import { renderDay } from "./views/day-view";
 import { renderDial } from "./views/dial-view";
@@ -82,7 +82,7 @@ function render(): void {
     hint = "Click a city to compare from there";
   }
   badge.hidden = !main || settingsOpen;
-  badge.innerHTML = `<span class="badge-main">${main}</span><span class="badge-hint">${hint}</span>`;
+  badge.innerHTML = `<span class="badge-main">${escapeHtml(main)}</span><span class="badge-hint">${hint}</span>`;
 
   $("hint").textContent =
     state.view === "year"
@@ -101,13 +101,13 @@ function render(): void {
     : `${daylight} of ${snap.cities.length} cities in daylight`;
 }
 
-function drawView(view: ViewId, snap: Snapshot): void {
-  if (view === "map") renderMap(snap, settings);
+function drawView(view: ViewId, snap: Snapshot, picture = false): void {
+  if (view === "map") renderMap(snap, settings, picture);
   else if (view === "day") renderDay(snap, settings);
   else if (view === "sky") renderSky(snap);
   else if (view === "dial") renderDial(snap);
   else if (view === "meet") renderMeet(snap, settings);
-  else if (view === "year") renderYear(snap, settings);
+  else if (view === "year") renderYear(snap, settings, picture);
   else renderClock(snap);
 }
 
@@ -115,27 +115,50 @@ function drawView(view: ViewId, snap: Snapshot): void {
 
 const ORIGINAL_WALLPAPER_KEY = "world-clock.original-wallpaper";
 let wallpaperWasOn = settings.wallpaper.on;
-let wallpaperBusy = false;
+/** The redraw in progress, and whether another was asked for meanwhile. */
+let wallpaperBusy: Promise<void> | null = null;
+let wallpaperPending = false;
 
-/** Draws the background layout for right now (no selection or scrubbing) and hands it to Windows. */
-async function updateWallpaper(): Promise<void> {
-  if (!inTauri || !settings.wallpaper.on || wallpaperBusy) return;
-  wallpaperBusy = true;
+/** Draws a layout's views for right now (no selection or scrubbing), starts its picture, and puts the live views back. */
+function drawPicture(layout: BackgroundTile[], screen: ScreenSize): Promise<Uint8Array> {
+  const live = { selectedKey: state.selectedKey, offsetMinutes: state.offsetMinutes, detailsOpen: state.detailsOpen };
+  Object.assign(state, { selectedKey: null, offsetMinutes: 0, detailsOpen: false });
   try {
-    const screen = await monitorSize();
-    const live = { selectedKey: state.selectedKey, offsetMinutes: state.offsetMinutes, detailsOpen: state.detailsOpen };
-    Object.assign(state, { selectedKey: null, offsetMinutes: 0, detailsOpen: false });
     const snap = snapshot(settings);
-    for (const view of new Set(settings.wallpaper.layout.map((tile) => tile.view))) drawView(view, snap);
-    const picture = pictureOfLayout(settings.wallpaper.layout, screen); // copies the pages before its first await
+    for (const view of new Set(layout.map((tile) => tile.view))) drawView(view, snap, true);
+    return pictureOfLayout(layout, screen); // copies the pages before its first await
+  } finally {
     Object.assign(state, live);
     render();
+  }
+}
+
+/** Redraws the desktop background; a call while one is in progress runs again once it finishes. */
+function updateWallpaper(): void {
+  if (!inTauri || !settings.wallpaper.on) return;
+  if (wallpaperBusy) {
+    wallpaperPending = true;
+    return;
+  }
+  wallpaperBusy = setWallpaper().finally(() => {
+    wallpaperBusy = null;
+    if (wallpaperPending) {
+      wallpaperPending = false;
+      updateWallpaper();
+    }
+  });
+}
+
+/** Draws the background layout and hands it to Windows. */
+async function setWallpaper(): Promise<void> {
+  try {
+    const screen = await monitorSize();
+    const picture = drawPicture(settings.wallpaper.layout, screen);
     const { invoke } = await import("@tauri-apps/api/core");
-    await invoke("set_wallpaper", await picture);
+    const png = await picture;
+    if (settings.wallpaper.on) await invoke("set_wallpaper", png); // unless it was turned off meanwhile
   } catch (error) {
     console.warn("Couldn't update the desktop background", error);
-  } finally {
-    wallpaperBusy = false;
   }
 }
 
@@ -154,15 +177,8 @@ async function monitorSize(): Promise<ScreenSize> {
 /** The live preview in the background designer, drawn the same way as the real picture. */
 setPreviewRenderer(async (layout, pixelWidth) => {
   const screen = inTauri ? await monitorSize() : browserScreen();
-  const live = { selectedKey: state.selectedKey, offsetMinutes: state.offsetMinutes, detailsOpen: state.detailsOpen };
-  Object.assign(state, { selectedKey: null, offsetMinutes: 0, detailsOpen: false });
-  const snap = snapshot(settings);
-  for (const view of new Set(layout.map((tile) => tile.view))) drawView(view, snap);
   // Only as many pixels as the designer shows.
-  const picture = pictureOfLayout(layout, { ...screen, scale: Math.min(screen.scale, pixelWidth / screen.width) });
-  Object.assign(state, live);
-  render();
-  return picture;
+  return drawPicture(layout, { ...screen, scale: Math.min(screen.scale, pixelWidth / screen.width) });
 });
 
 /** Reacts to the setting being turned on or off: keep running when closed, and save or restore the old background. */
@@ -175,6 +191,7 @@ async function syncWallpaperMode(): Promise<void> {
     const current = await invoke<string>("current_wallpaper").catch(() => "");
     if (current && !/world-clock-[ab].png$/i.test(current)) localStorage.setItem(ORIGINAL_WALLPAPER_KEY, current);
   } else if (!on && wallpaperWasOn) {
+    await wallpaperBusy; // so a redraw in progress can't land after the restore
     const original = localStorage.getItem(ORIGINAL_WALLPAPER_KEY);
     if (original) await invoke("restore_wallpaper", { path: original }).catch((error) => console.warn("Couldn't restore the background", error));
   }
