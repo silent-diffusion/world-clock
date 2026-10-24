@@ -78,8 +78,9 @@ move between views. Choose which views you want, and their order, in Settings.
   remembers where you drag it, and shows every city or only the ones you've pinned (every
   city while none are pinned). Opening it returns to now.
 - **Themes**: pick a colour theme in Settings → Theme: Midnight (the original dark navy),
-  Daylight (a light theme), Dusk, Ember, Ocean or Forest. It changes the whole app at once,
-  including mini mode and the desktop background picture.
+  Daylight (a light theme), Dusk, Ember, Ocean, Forest or AMOLED (pure black, for OLED
+  screens). It changes the whole app at once, including mini mode and the desktop background
+  picture.
 - **Daylight-saving aware**: times come from the IANA time zone database, so clock changes
   are handled automatically.
 - **Edit your cities**: search about 7,000 cities, add or remove them, sort them, change

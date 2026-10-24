@@ -1,4 +1,4 @@
-/* World Clock: one look for every view and for Settings, in six colour themes (Settings → Theme).
+/* World Clock: one look for every view and for Settings, in seven colour themes (Settings → Theme).
    Midnight, the default, is defined here; each other theme overrides only the tokens it changes.
    Translucent tints are mixed from a token (color-mix with --ink, --bg or an accent), so they follow the theme.
    Any element with a data-theme attribute takes that theme: <html> for the app, the desktop-background
@@ -186,6 +186,31 @@
   --meet-asleep-text: #869c82;
   --meet-cell-text: #10240b;
   --today-holiday: #3f7a35;
+}
+
+[data-theme="amoled"] {
+  /* Pure black wherever there's a background, so an OLED screen leaves those pixels off; cards and bars
+     are told apart by their thin borders instead of a lighter fill. */
+  --bg: #000000;
+  --surface-raised: #000000;
+  --panel: #000000;
+  --panel-line: color-mix(in srgb, var(--ink) 14%, transparent);
+  --text: #e8e8e8;
+  --ink: #ffffff;
+  --soft: #c8c8c8;
+  --muted: #9a9a9a;
+  --faint: #8c8c8c;
+  --past: #7c7c7c;
+  --past-weekend: #7488b0;
+  --night-bar: #161616;
+  --land: #7b8aa6;
+  --night-shade: rgba(0, 0, 0, 0.7);
+  --switch-off: #2c2c2c;
+  --grip: #4c4c4c;
+  --meet-awake: #1e2638;
+  --meet-asleep: #0c0c0c;
+  --meet-asleep-text: #8c8c8c;
+  --sky-night-bg: #10172b;
 }
 
 body.shifted {
