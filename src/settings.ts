@@ -23,6 +23,7 @@ export const THEMES: { id: string; name: string; description: string }[] = [
   { id: "ember", name: "Ember", description: "Warm browns with golden daylight" },
   { id: "ocean", name: "Ocean", description: "Deep teal with sea-green daylight" },
   { id: "forest", name: "Forest", description: "Dark green with soft leaf-green daylight" },
+  { id: "amoled", name: "AMOLED", description: "Pure black, for OLED screens: the background's pixels stay off" },
 ];
 
 /** Puts a theme on the whole app (and the desktop background picture, which copies it). */
