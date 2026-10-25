@@ -54,6 +54,10 @@ pub fn run() {
             wallpaper::set_wallpaper,
             wallpaper::current_wallpaper,
             wallpaper::restore_wallpaper,
+            wallpaper::monitors,
+            wallpaper::set_monitor_wallpaper,
+            wallpaper::current_wallpapers,
+            wallpaper::restore_wallpapers,
             wallpaper::set_keep_running,
             wallpaper::launched_at_login,
             desktop_icons::desktop_icons

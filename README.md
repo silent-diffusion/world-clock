@@ -64,15 +64,20 @@ move between views. Choose which views you want, and their order, in Settings.
     clocks, with the date on that city's label.
 - **Desktop background**: in Settings → Desktop background, turn on "Set as background" and
   arrange one or more views (for example the map and the meeting finder) on a picture of your
-  main display. It's a live preview of the real background. Drag views to move them, drag their corner to resize them, and see your
-  desktop icons and the taskbar so you can arrange around them. Once a minute World Clock
-  draws that layout at your main display's resolution, without notifications, keys or controls,
+  screen. It's a live preview of the real background. Drag views to move them, drag their
+  corner to resize them, and see your desktop icons and the taskbar so you can arrange around
+  them. Once a minute World Clock draws that layout without notifications, keys or controls,
   with each view stretched to fill its spot (the Year view shows just its calendars), and sets it
-  as your Windows background, a plain picture until the next minute's redraw. While it's on,
-  closing the window keeps World Clock running in the background to redraw it (open it again
-  from the Start menu, or use **Quit World Clock** in Settings to stop it), and at sign-in it
-  starts hidden. Settings shows when the background was last updated, or why it couldn't be.
-  Turning it off puts your previous background back.
+  as your Windows background, a plain picture until the next minute's redraw.
+  - **Several screens**: every connected screen gets its own picture, drawn at its own
+    resolution. Landscape screens share one layout; portrait screens (taller than wide) have
+    their own, which you arrange by choosing **Portrait screens** above the layout. That choice
+    appears when a portrait screen is connected.
+  - While it's on, closing the window keeps World Clock running in the background to redraw it
+    (open it again from the Start menu, or use **Quit World Clock** in Settings to stop it), and
+    at sign-in it starts hidden. Settings shows when the background was last updated and on how
+    many screens, or why it couldn't be. Turning it off puts each screen's previous background
+    back.
 - **Mini mode**: shrink to a slim strip of times, the same height as the Windows 11
   taskbar. It opens sitting on the taskbar, stays on top of it (and every other window),
   remembers where you drag it, and shows every city or only the ones you've pinned (every
@@ -155,9 +160,10 @@ Project layout:
 | `src/styles.css` | All the styles, with each colour theme's tokens at the top |
 | `src/updates.ts` | Checks GitHub for a newer release |
 | `src/wallpaper.ts` | Draws the background layout as a full-screen picture |
+| `src/screens.ts` | The connected screens: shape, size, taskbar and which wallpaper slot is theirs |
 | `src/background-editor.ts` | The drag-and-resize background designer in Settings |
 | `src-tauri/src/update.rs` | Downloads, verifies and runs the update installer |
-| `src-tauri/src/wallpaper.rs` | Sets the Windows background, ticks every minute, keeps running when closed |
+| `src-tauri/src/wallpaper.rs` | Sets the Windows background (one picture per screen), ticks every minute, keeps running when closed |
 | `src-tauri/src/desktop_icons.rs` | Reads where the desktop icons are, through the shell's own interfaces |
 | `src-tauri/` | The Rust/Tauri desktop shell and window settings |
 

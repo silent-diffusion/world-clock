@@ -13,7 +13,8 @@ import { renderMeet } from "./views/meet-view";
 import { isMini, renderMini, restoreIfTooSmall, setMini } from "./views/mini-view";
 import { renderSky } from "./views/sky-view";
 import { renderYear, resetYear, yearSummary } from "./views/year-view";
-import { browserScreen, pictureOfLayout, type ScreenSize } from "./wallpaper";
+import { listScreens } from "./screens";
+import { pictureOfLayout, type ScreenSize } from "./wallpaper";
 
 const $ = (id: string) => document.getElementById(id)!;
 const clock = $("clock");
@@ -126,8 +127,26 @@ function drawView(view: ViewId, snap: Snapshot, picture = false): void {
 
 // ---- Desktop background ----
 
+/** Before 1.6, one background for every screen; since then, each screen's own. */
 const ORIGINAL_WALLPAPER_KEY = "world-clock.original-wallpaper";
+const ORIGINAL_WALLPAPERS_KEY = "world-clock.original-wallpapers";
+/** World Clock's own pictures, which are never saved as "your previous background". */
+const OUR_PICTURE = /world-clock-(\d+-)?[ab]\.png$/i;
 let wallpaperWasOn = settings.wallpaper.on;
+
+/** Saves the background each screen shows now, to put back when this is turned off. Returns whether that worked. */
+async function saveOriginalWallpapers(invoke: typeof import("@tauri-apps/api/core").invoke): Promise<boolean> {
+  try {
+    const current = await invoke<{ position: number; monitors: { id: string; path: string }[] }>("current_wallpapers");
+    const theirs = current.monitors.filter((m) => !OUR_PICTURE.test(m.path));
+    // All showing World Clock already (it was on before): keep what was saved then.
+    if (theirs.length) localStorage.setItem(ORIGINAL_WALLPAPERS_KEY, JSON.stringify({ position: current.position, monitors: theirs }));
+    return theirs.length > 0 || localStorage.getItem(ORIGINAL_WALLPAPERS_KEY) !== null || localStorage.getItem(ORIGINAL_WALLPAPER_KEY) !== null;
+  } catch (error) {
+    console.warn("Couldn't save the current backgrounds", error);
+    return false;
+  }
+}
 /** The redraw in progress, and whether another was asked for meanwhile. */
 let wallpaperBusy: Promise<void> | null = null;
 let wallpaperPending = false;
@@ -164,42 +183,46 @@ function updateWallpaper(): void {
   });
 }
 
-/** Draws the background layout and hands it to Windows. */
+/** Draws each screen's picture, at its own size and with its shape's layout, and hands it to Windows. */
 async function setWallpaper(): Promise<void> {
+  let error = "";
+  let done = 0;
   try {
-    const screen = await monitorSize();
-    const picture = drawPicture(settings.wallpaper.layout, screen);
+    const screens = await listScreens();
     const { invoke } = await import("@tauri-apps/api/core");
-    const png = await picture;
-    // Unless it was turned off meanwhile.
-    if (settings.wallpaper.on) {
-      await invoke("set_wallpaper", png);
-      reportWallpaper({ at: new Date(), error: "" });
+    // Screens of the same shape and size get the same picture, so it's drawn once.
+    const pictures = new Map<string, Uint8Array>();
+    for (const screen of screens) {
+      const layout = screen.shape === "portrait" ? settings.wallpaper.portraitLayout : settings.wallpaper.layout;
+      const { width, height, scale } = screen.size;
+      const key = `${screen.shape} ${width}x${height}@${scale}`;
+      let png = pictures.get(key);
+      if (!png) {
+        png = await drawPicture(layout, screen.size);
+        pictures.set(key, png);
+      }
+      if (!settings.wallpaper.on) return; // turned off meanwhile
+      try {
+        if (screen.index < 0) await invoke("set_wallpaper", png);
+        else await invoke("set_monitor_wallpaper", png, { headers: { monitor: String(screen.index) } });
+        done++;
+      } catch (failure) {
+        // One screen failing (unplugged mid-update, say) shouldn't stop the others.
+        error ||= String(failure);
+      }
     }
-  } catch (error) {
-    console.warn("Couldn't update the desktop background", error);
-    reportWallpaper({ at: new Date(), error: error instanceof Error ? error.message : String(error) });
+  } catch (failure) {
+    error = failure instanceof Error ? failure.message : String(failure);
   }
-}
-
-/** The size of the main (primary) display, which the background is fitted to. */
-async function monitorSize(): Promise<ScreenSize> {
-  const { currentMonitor, primaryMonitor } = await import("@tauri-apps/api/window");
-  const monitor = (await primaryMonitor().catch(() => null)) ?? (await currentMonitor().catch(() => null));
-  if (!monitor) return browserScreen();
-  return {
-    width: Math.round(monitor.size.width / monitor.scaleFactor),
-    height: Math.round(monitor.size.height / monitor.scaleFactor),
-    scale: monitor.scaleFactor,
-  };
+  if (error) console.warn("Couldn't update the desktop background", error);
+  reportWallpaper({ at: new Date(), error, screens: done });
 }
 
 /** The live preview in the background designer, drawn the same way as the real picture. */
-setPreviewRenderer(async (layout, pixelWidth) => {
-  const screen = inTauri ? await monitorSize() : browserScreen();
+setPreviewRenderer((layout, pixelWidth, screen) =>
   // Only as many pixels as the designer shows.
-  return drawPicture(layout, { ...screen, scale: Math.min(screen.scale, pixelWidth / screen.width) });
-});
+  drawPicture(layout, { ...screen, scale: Math.min(screen.scale, pixelWidth / screen.width) }),
+);
 
 /** Reacts to the setting being turned on or off: keep running when closed, and save or restore the old background. */
 async function syncWallpaperMode(): Promise<void> {
@@ -209,19 +232,17 @@ async function syncWallpaperMode(): Promise<void> {
     const { invoke } = await import("@tauri-apps/api/core");
     await invoke("set_keep_running", { on });
     if (on) {
-      let saved = false;
-      try {
-        const current = await invoke<string>("current_wallpaper");
-        if (current && !/world-clock-[ab].png$/i.test(current)) localStorage.setItem(ORIGINAL_WALLPAPER_KEY, current);
-        saved = Boolean(current);
-      } catch (error) {
-        console.warn("Couldn't save the current background", error);
-      }
-      reportWallpaper({ originalLost: !saved });
+      reportWallpaper({ originalLost: !(await saveOriginalWallpapers(invoke)) });
     } else {
       await wallpaperBusy; // so a redraw in progress can't land after the restore
+      const originals = localStorage.getItem(ORIGINAL_WALLPAPERS_KEY);
       const original = localStorage.getItem(ORIGINAL_WALLPAPER_KEY);
-      if (original) await invoke("restore_wallpaper", { path: original }).catch((error) => console.warn("Couldn't restore the background", error));
+      const restore = originals
+        ? invoke("restore_wallpapers", { saved: JSON.parse(originals) })
+        : original
+          ? invoke("restore_wallpaper", { path: original }) // saved by a version before 1.6
+          : null;
+      await restore?.catch((error) => console.warn("Couldn't restore the background", error));
     }
     wallpaperWasOn = on;
   }

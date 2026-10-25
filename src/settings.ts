@@ -57,6 +57,15 @@ export interface BackgroundTile {
 /** The default background: the map filling the screen above the taskbar. */
 export const FULL_SCREEN_MAP: BackgroundTile = { view: "map", x: 0, y: 0, w: 1, h: 0.95 };
 
+/** The default for portrait screens: a wide map would be squashed, so the map across the top and the Day view below. */
+export const PORTRAIT_LAYOUT: BackgroundTile[] = [
+  { view: "map", x: 0, y: 0.04, w: 1, h: 0.3 },
+  { view: "day", x: 0, y: 0.37, w: 1, h: 0.57 },
+];
+
+/** Landscape screens (wider than tall) use one layout, portrait screens the other. */
+export type ScreenShape = "landscape" | "portrait";
+
 export interface Settings {
   /** Kept in the order the cities were added. */
   cities: City[];
@@ -77,8 +86,8 @@ export interface Settings {
   yearMarks: { changes: boolean; holidays: boolean; gaps: boolean };
   /** Mini mode shows only pinned cities. */
   miniPinnedOnly: boolean;
-  /** Use a view as the desktop background, redrawn every minute. */
-  wallpaper: { on: boolean; layout: BackgroundTile[] };
+  /** Use views as the desktop background, redrawn every minute: one layout for landscape screens, one for portrait. */
+  wallpaper: { on: boolean; layout: BackgroundTile[]; portraitLayout: BackgroundTile[] };
   /** Colour theme: one of THEMES. */
   theme: string;
 }
@@ -112,7 +121,7 @@ export function defaultSettings(): Settings {
     meetSort: "time",
     yearMarks: { changes: true, holidays: true, gaps: true },
     miniPinnedOnly: false,
-    wallpaper: { on: false, layout: [{ ...FULL_SCREEN_MAP }] },
+    wallpaper: { on: false, layout: [{ ...FULL_SCREEN_MAP }], portraitLayout: PORTRAIT_LAYOUT.map((t) => ({ ...t })) },
     theme: "midnight",
   };
 }
@@ -128,21 +137,31 @@ function normalizeViews(saved: unknown, fallback: Settings["views"]): Settings["
 const clamp = (n: unknown, min: number, max: number, fallback: number): number =>
   typeof n === "number" && Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : fallback;
 
-/** Valid tiles only; 1.1.x saved a single view, which becomes one full-screen tile. */
+/** The valid tiles in a saved list; none when it isn't a list. */
+function normalizeTiles(saved: unknown): BackgroundTile[] {
+  if (!Array.isArray(saved)) return [];
+  return (saved as Partial<BackgroundTile>[])
+    .filter((tile) => tile && typeof tile.view === "string" && Object.hasOwn(VIEW_INFO, tile.view))
+    .map((tile) => {
+      const w = clamp(tile.w, 0.05, 1, 1);
+      const h = clamp(tile.h, 0.05, 1, 1);
+      return { view: tile.view as ViewId, w, h, x: clamp(tile.x, 0, 1 - w, 0), y: clamp(tile.y, 0, 1 - h, 0) };
+    });
+}
+
+/** The landscape layout; 1.1.x saved a single view, which becomes one full-screen tile. */
 function normalizeLayout(saved: unknown): BackgroundTile[] {
   const s = saved as { layout?: unknown; view?: unknown } | undefined;
-  if (Array.isArray(s?.layout)) {
-    const tiles = (s!.layout as Partial<BackgroundTile>[])
-      .filter((tile) => tile && typeof tile.view === "string" && Object.hasOwn(VIEW_INFO, tile.view))
-      .map((tile) => {
-        const w = clamp(tile.w, 0.05, 1, 1);
-        const h = clamp(tile.h, 0.05, 1, 1);
-        return { view: tile.view as ViewId, w, h, x: clamp(tile.x, 0, 1 - w, 0), y: clamp(tile.y, 0, 1 - h, 0) };
-      });
-    if (tiles.length) return tiles;
-  }
+  const tiles = normalizeTiles(s?.layout);
+  if (tiles.length) return tiles;
   const view = typeof s?.view === "string" && Object.hasOwn(VIEW_INFO, s.view) ? (s.view as ViewId) : "map";
   return [{ ...FULL_SCREEN_MAP, view }];
+}
+
+/** The portrait layout, added in 1.6; before that there was none, so it starts from the default. */
+function normalizePortraitLayout(saved: unknown): BackgroundTile[] {
+  const tiles = normalizeTiles((saved as { portraitLayout?: unknown } | undefined)?.portraitLayout);
+  return tiles.length ? tiles : PORTRAIT_LAYOUT.map((t) => ({ ...t }));
 }
 
 const LABEL_SIDES: LabelSide[] = ["left", "right", "above", "below"];
@@ -191,7 +210,11 @@ export function loadSettings(): Settings {
       meetSort: saved.meetSort === "name" || saved.meetSort === "custom" ? saved.meetSort : defaults.meetSort,
       yearMarks: { ...defaults.yearMarks, ...(saved.yearMarks ?? {}) },
       miniPinnedOnly: saved.miniPinnedOnly ?? defaults.miniPinnedOnly,
-      wallpaper: { on: Boolean(saved.wallpaper?.on), layout: normalizeLayout(saved.wallpaper) },
+      wallpaper: {
+        on: Boolean(saved.wallpaper?.on),
+        layout: normalizeLayout(saved.wallpaper),
+        portraitLayout: normalizePortraitLayout(saved.wallpaper),
+      },
       theme: THEMES.some((t) => t.id === saved.theme) ? saved.theme! : defaults.theme,
     };
   } catch {
