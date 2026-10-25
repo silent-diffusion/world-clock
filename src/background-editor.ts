@@ -1,30 +1,40 @@
-import { FULL_SCREEN_MAP, inTauri, VIEW_INFO, type BackgroundTile, type Settings, type ViewId } from "./settings";
+import { listScreens, type Screen } from "./screens";
+import { FULL_SCREEN_MAP, inTauri, PORTRAIT_LAYOUT, VIEW_INFO, type BackgroundTile, type ScreenShape, type Settings, type ViewId } from "./settings";
+import { browserScreen, type ScreenSize } from "./wallpaper";
 
-// The desktop background designer: a scaled-down picture of the main display where each view is a box
-// you can drag and resize, under your desktop icons and the taskbar so you can arrange around them.
-// Each box shows its part of the real background picture, redrawn after every change, so the board
-// looks the way the desktop will.
+// The desktop background designer: a scaled-down picture of a screen where each view is a box you can drag
+// and resize, under your desktop icons and the taskbar so you can arrange around them. Each box shows its
+// part of the real background picture, redrawn after every change, so the board looks the way the desktop
+// will. Landscape and portrait screens have a layout each; every screen's picture is drawn at its own size.
 
 const board = document.getElementById("bg-board")!;
 const addSelect = document.getElementById("bg-add") as HTMLSelectElement;
 const note = document.getElementById("bg-note")!;
+const shapeSwitch = document.getElementById("bg-shapes")!;
 
 const MIN_SIZE = 0.08; // smallest tile, as a fraction of the screen
 const SNAP = 0.01; // positions snap to 1% of the screen
 const EDGE = 0.015; // and to the screen edges when this close
 
 interface Desk {
-  /** Screen width ÷ height. */
+  /** The screen the board stands for: its size, and its width ÷ height. */
+  size: ScreenSize;
   ratio: number;
   /** Taskbar band, as fractions of the screen; null when there's no bottom taskbar. */
   taskbar: { y: number; h: number } | null;
   icons: { name: string; x: number; y: number; w: number; h: number }[];
 }
 
-let desk: Desk = { ratio: 16 / 9, taskbar: { y: 0.955, h: 0.045 }, icons: [] };
+let desk: Desk = { size: browserScreen(), ratio: 16 / 9, taskbar: { y: 0.955, h: 0.045 }, icons: [] };
+/** Which screens' layout is on the board, both layouts, and the one on the board (the same array as layouts[shape]). */
+let shape: ScreenShape = "landscape";
+let layouts: Record<ScreenShape, BackgroundTile[]> = { landscape: [], portrait: [] };
 let layout: BackgroundTile[] = [];
-let save: (layout: BackgroundTile[]) => void = () => {};
-let renderPreview: ((layout: BackgroundTile[], pixelWidth: number) => Promise<Uint8Array>) | null = null;
+let save: (shape: ScreenShape, layout: BackgroundTile[]) => void = () => {};
+let renderPreview: ((layout: BackgroundTile[], pixelWidth: number, screen: ScreenSize) => Promise<Uint8Array>) | null = null;
+/** The connected screens, and the desktop icons on the main one (null when they couldn't be read). */
+let screens: Screen[] = [];
+let mainIcons: Desk["icons"] | null = [];
 /** The latest preview picture, and where each view was in the layout it was drawn from. */
 let previewUrl = "";
 let previewSpots = new Map<ViewId, BackgroundTile>();
@@ -38,14 +48,18 @@ function escapeHtml(text: string): string {
   return text.replace(/[<>&"']/g, (ch) => `&#${ch.charCodeAt(0)};`);
 }
 
-/** Lets the app shell draw the real picture, at a given width in pixels, for the live preview. */
-export function setPreviewRenderer(render: (layout: BackgroundTile[], pixelWidth: number) => Promise<Uint8Array>): void {
+/** Lets the app shell draw the real picture, for a screen and at a given width in pixels, for the live preview. */
+export function setPreviewRenderer(render: (layout: BackgroundTile[], pixelWidth: number, screen: ScreenSize) => Promise<Uint8Array>): void {
   renderPreview = render;
 }
 
-/** Shows the saved layout; `onChange` saves an edited one. */
-export function showBackgroundEditor(settings: Settings, onChange: (layout: BackgroundTile[]) => void): void {
-  layout = settings.wallpaper.layout.map((t) => ({ ...t }));
+/** Shows the saved layouts; `onChange` saves an edited one. */
+export function showBackgroundEditor(settings: Settings, onChange: (shape: ScreenShape, layout: BackgroundTile[]) => void): void {
+  layouts = {
+    landscape: settings.wallpaper.layout.map((t) => ({ ...t })),
+    portrait: settings.wallpaper.portraitLayout.map((t) => ({ ...t })),
+  };
+  layout = layouts[shape];
   save = onChange;
   draw();
   readDesk();
@@ -63,7 +77,7 @@ function refreshPreview(delay = 250): void {
     const ticket = ++previewTicket;
     const drawn = layout.map((t) => ({ ...t }));
     try {
-      const png = await renderPreview(drawn, Math.round((board.clientWidth || 640) * (window.devicePixelRatio || 1)));
+      const png = await renderPreview(drawn, Math.round((board.clientWidth || 640) * (window.devicePixelRatio || 1)), desk.size);
       if (ticket !== previewTicket) return; // a newer layout is already being drawn
       const old = previewUrl;
       previewUrl = URL.createObjectURL(new Blob([png as BlobPart], { type: "image/png" }));
@@ -82,41 +96,85 @@ setInterval(() => {
   if (board.offsetParent) refreshPreview(0);
 }, 60_000);
 
-/** The main display's shape, its taskbar and the desktop icons (desktop app only). */
+/** The connected screens and the desktop icons (desktop app only), then fits the board to them. */
 async function readDesk(): Promise<void> {
-  if (!inTauri) {
-    note.textContent = "This is how your desktop will look. Drag a view to move it and its corner to resize it. Your desktop icons appear here in the desktop app.";
-    return;
-  }
   try {
-    const { primaryMonitor } = await import("@tauri-apps/api/window");
-    const monitor = await primaryMonitor();
-    if (monitor) {
-      const bottom = monitor.position.y + monitor.size.height;
-      const workBottom = monitor.workArea.position.y + monitor.workArea.size.height;
-      desk.ratio = monitor.size.width / monitor.size.height;
-      desk.taskbar = bottom > workBottom ? { y: (workBottom - monitor.position.y) / monitor.size.height, h: (bottom - workBottom) / monitor.size.height } : null;
+    screens = await listScreens();
+    if (inTauri) {
+      const { invoke } = await import("@tauri-apps/api/core");
+      const found = await invoke<{ screenWidth: number; screenHeight: number; cellWidth: number; cellHeight: number; icons: { name: string; x: number; y: number }[] }>("desktop_icons");
+      mainIcons = found.icons.map((icon) => ({
+        name: icon.name,
+        x: icon.x / found.screenWidth,
+        y: icon.y / found.screenHeight,
+        w: found.cellWidth / found.screenWidth,
+        h: found.cellHeight / found.screenHeight,
+      }));
     }
-    const { invoke } = await import("@tauri-apps/api/core");
-    const found = await invoke<{ screenWidth: number; screenHeight: number; cellWidth: number; cellHeight: number; icons: { name: string; x: number; y: number }[] }>("desktop_icons");
-    desk.icons = found.icons.map((icon) => ({
-      name: icon.name,
-      x: icon.x / found.screenWidth,
-      y: icon.y / found.screenHeight,
-      w: found.cellWidth / found.screenWidth,
-      h: found.cellHeight / found.screenHeight,
-    }));
   } catch (error) {
     console.warn("Couldn't read the desktop layout", error);
-    note.textContent = "This is how your desktop will look. Drag a view to move it and its corner to resize it. (Your desktop icons couldn't be read this time.)";
+    mainIcons = null;
   }
+  const before = desk.ratio;
+  fitDesk();
   if (drag) previewWaiting = true;
   else draw();
+  if (desk.ratio !== before) refreshPreview(0);
 }
+
+/** Points the board at a screen of the chosen shape: the main screen when it has that shape, else the first that does. */
+function fitDesk(): void {
+  const shapes = new Set(screens.map((s) => s.shape));
+  // The desktop app only offers shapes that are connected; the browser preview offers both to try.
+  if (inTauri && shapes.size && !shapes.has(shape)) setShape([...shapes][0]);
+  const screen = screens.find((s) => s.shape === shape && s.primary) ?? screens.find((s) => s.shape === shape);
+  if (screen) {
+    desk = { size: screen.size, ratio: screen.size.width / screen.size.height, taskbar: screen.taskbar, icons: screen.primary ? (mainIcons ?? []) : [] };
+  } else {
+    // The browser preview's other shape: this screen turned on its side.
+    const { width, height, scale } = browserScreen();
+    const [long, short] = [Math.max(width, height), Math.min(width, height)];
+    const size = shape === "portrait" ? { width: short, height: long, scale } : { width: long, height: short, scale };
+    const bar = 48 / size.height; // the taskbar's usual height
+    desk = { size, ratio: size.width / size.height, taskbar: { y: 1 - bar, h: bar }, icons: [] };
+  }
+
+  shapeSwitch.hidden = inTauri && shapes.size < 2;
+  const count = screens.filter((s) => s.shape === shape).length;
+  const parts = ["This is how your desktop will look. Drag a view to move it and its corner to resize it."];
+  if (screens.length > 1) {
+    parts.unshift(`Each of your ${screens.length} screens gets its own picture, fitted to its size. This layout is for your ${count === 1 ? shape : `${count} ${shape}`} screen${count === 1 ? "" : "s"}.`);
+  }
+  if (!inTauri) parts.push("Your desktop icons appear here in the desktop app.");
+  else if (mainIcons === null) parts.push("(Your desktop icons couldn't be read this time.)");
+  else if (screen?.primary) parts.push("Outlined squares are your desktop icons; the strip at the bottom is the taskbar.");
+  note.textContent = parts.join(" ");
+}
+
+/** Switches the board to the other shape's layout. */
+function setShape(next: ScreenShape): void {
+  shape = next;
+  layout = layouts[shape];
+  for (const button of shapeSwitch.querySelectorAll<HTMLElement>("[data-shape]")) {
+    button.setAttribute("aria-checked", String(button.dataset.shape === shape));
+  }
+}
+
+shapeSwitch.addEventListener("click", (event) => {
+  const button = (event.target as Element).closest<HTMLElement>("[data-shape]");
+  if (!button || button.dataset.shape === shape) return;
+  setShape(button.dataset.shape as ScreenShape);
+  fitDesk();
+  previewUrl = ""; // the other shape's picture doesn't fit this board
+  draw();
+  refreshPreview(0);
+});
 
 function draw(): void {
   previewWaiting = false;
   board.style.aspectRatio = String(desk.ratio);
+  // A portrait board would be taller than the window; keep it to about two thirds of its height.
+  board.style.width = desk.ratio < 1 ? `min(100%, ${(64 * desk.ratio).toFixed(2)}vh)` : "";
   const taskbar = desk.taskbar ? `<div class="bg-taskbar" style="top:${pct(desk.taskbar.y)};height:${pct(desk.taskbar.h)}"><span>Taskbar</span></div>` : "";
   const icons = desk.icons
     .map((icon) => `<div class="bg-icon" style="left:${pct(icon.x)};top:${pct(icon.y)};width:${pct(icon.w)};height:${pct(icon.h)}" title="${escapeHtml(icon.name)}"><span>${escapeHtml(icon.name)}</span></div>`)
@@ -154,7 +212,7 @@ function draw(): void {
 }
 
 function commit(): void {
-  save(layout.map((t) => ({ ...t })));
+  save(shape, layout.map((t) => ({ ...t })));
   draw();
   refreshPreview();
 }
@@ -242,7 +300,7 @@ board.addEventListener("click", (event) => {
   if (!remove) return;
   const index = Number(remove.closest<HTMLElement>(".bg-tile")!.dataset.index);
   layout.splice(index, 1);
-  if (!layout.length) layout.push({ ...FULL_SCREEN_MAP });
+  if (!layout.length) layout.push(...defaultLayout());
   commit();
 });
 
@@ -257,8 +315,11 @@ addSelect.addEventListener("change", () => {
   board.querySelector<HTMLElement>(`.bg-tile[data-index="${layout.length - 1}"]`)?.focus();
 });
 
+/** A fresh layout for the shape on the board. */
+const defaultLayout = (): BackgroundTile[] => (shape === "portrait" ? PORTRAIT_LAYOUT : [FULL_SCREEN_MAP]).map((t) => ({ ...t }));
+
 document.getElementById("bg-reset")!.addEventListener("click", () => {
-  layout = [{ ...FULL_SCREEN_MAP }];
+  layout = layouts[shape] = defaultLayout();
   commit();
 });
 

@@ -181,7 +181,7 @@ miniPinned.addEventListener("change", () => update((s) => (s.miniPinnedOnly = mi
 // ---- Desktop background ----
 
 /** How setting the background last went: when it last worked, why it last failed, and whether your own couldn't be saved. */
-const wallpaperReport: { at?: Date; error?: string; originalLost?: boolean } = {};
+const wallpaperReport: { at?: Date; error?: string; originalLost?: boolean; screens?: number } = {};
 
 /** Called by the shell after each try at setting the background, so the status line can say how it went. */
 export function reportWallpaper(report: typeof wallpaperReport): void {
@@ -191,8 +191,8 @@ export function reportWallpaper(report: typeof wallpaperReport): void {
 
 function wallpaperStatusText(): string {
   if (!settings.wallpaper.on) return "Your own background stays until you turn this on";
-  const { at, error, originalLost } = wallpaperReport;
-  const status = error ? `Couldn't set the background: ${error}` : at ? `Updated ${clockText(at, systemTimeZone)}` : "Updating every minute";
+  const { at, error, originalLost, screens } = wallpaperReport;
+  const status = error ? `Couldn't set the background: ${error}` : at ? `Updated ${clockText(at, systemTimeZone)}${screens && screens > 1 ? ` on ${screens} screens` : ""}` : "Updating every minute";
   return originalLost ? `${status} · Your previous background couldn't be saved, so it can't be put back` : status;
 }
 
@@ -537,7 +537,9 @@ function showPanel(panel: PanelId, title?: string): void {
   document.querySelector(".settings-body")!.scrollTop = 0;
   if (panel === "root") renderSummaries();
   if (panel === "cities") renderCities();
-  if (panel === "background") showBackgroundEditor(settings, (layout) => update((s) => (s.wallpaper.layout = layout)));
+  if (panel === "background") {
+    showBackgroundEditor(settings, (shape, layout) => update((s) => (shape === "portrait" ? (s.wallpaper.portraitLayout = layout) : (s.wallpaper.layout = layout))));
+  }
 }
 
 /** Goes up one level. Returns false at the top, where the caller closes Settings. */
